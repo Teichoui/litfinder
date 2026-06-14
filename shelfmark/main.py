@@ -98,6 +98,8 @@ from shelfmark.release_sources import (
     SourceUnavailableError,
     get_source_display_name,
 )
+from shelfmark.watchlist.db import WatchlistDB
+from shelfmark.watchlist.routes import init_watchlist_routes, watchlist_bp
 
 if TYPE_CHECKING:
     from shelfmark.metadata_providers import BookMetadata, MetadataProvider
