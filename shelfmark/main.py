@@ -89,8 +89,6 @@ from shelfmark.core.requests_service import (
 )
 from shelfmark.core.user_db import UserDB
 from shelfmark.core.utils import normalize_base_path
-from shelfmark.watchlist.db import WatchlistDB
-from shelfmark.watchlist.routes import init_watchlist_routes, watchlist_bp
 from shelfmark.download import orchestrator as backend
 from shelfmark.release_sources import (
     BrowseRecord,
