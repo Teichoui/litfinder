@@ -62,6 +62,7 @@ interface HeaderProps {
   onContentTypeChange?: (type: ContentType) => void;
   allowedContentTypes?: ContentType[];
   combinedMode?: boolean;
+  combinedModeLocked?: boolean;
   onCombinedModeChange?: (enabled: boolean) => void;
   queryTargets?: QueryTargetOption[];
   activeQueryTarget?: string;
@@ -118,6 +119,7 @@ export const Header = forwardRef<HeaderHandle, HeaderProps>(
       onContentTypeChange,
       allowedContentTypes,
       combinedMode,
+      combinedModeLocked,
       onCombinedModeChange,
       queryTargets = [],
       activeQueryTarget = 'general',
@@ -711,6 +713,7 @@ export const Header = forwardRef<HeaderHandle, HeaderProps>(
                   onContentTypeChange={onContentTypeChange}
                   allowedContentTypes={allowedContentTypes}
                   combinedMode={combinedMode}
+                  combinedModeLocked={combinedModeLocked}
                   onCombinedModeChange={onCombinedModeChange}
                   queryTargets={queryTargets}
                   activeQueryTarget={activeQueryTarget}

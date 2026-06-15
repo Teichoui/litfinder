@@ -19,7 +19,7 @@ http://your-server:8084/?q=harry+potter
 | `lang` | Filter by language (ISO 639-1 code) | `/?lang=en` |
 | `format` | Filter by file format | `/?format=epub` |
 | `content` | Filter by content type | `/?content=fiction` |
-| `content_type` | Select media type (`ebook` or `audiobook`) in Universal mode only | `/?q=dune&content_type=audiobook` |
+| `content_type` | Select media type (`ebook`, `audiobook`, or `combined`) in Universal mode only | `/?q=dune&content_type=combined` |
 | `sort` | Sort order for results | `/?sort=newest` |
 
 ## Multiple Values
@@ -62,6 +62,14 @@ Some parameters support multiple values by repeating the parameter:
 ```
 /?q=dune&content_type=audiobook
 ```
+
+**Universal combined search (ebook + audiobook at once):**
+```
+/?q=dune&content_type=combined
+```
+`content_type=combined` only takes effect in Universal mode when combined search is
+available (the combined selector is enabled and neither format is blocked by policy);
+otherwise it is silently ignored.
 
 ## Search Mode Behavior
 

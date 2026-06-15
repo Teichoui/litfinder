@@ -88,7 +88,12 @@ def irc_settings() -> list[SettingsField]:
             key="IRC_SEARCH_BOT",
             label="Search bot",
             placeholder="e.g. search",
-            description="The search bot to query for results",
+            description=(
+                "The search bot to address queries to (required). Searches are sent as "
+                '"@<bot> <query>". Without it, queries would be posted unaddressed to '
+                "the channel, which reads as spam and can get your nick banned."
+            ),
+            required=True,
             env_supported=True,
         ),
         HeadingField(

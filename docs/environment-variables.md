@@ -223,6 +223,7 @@ Default language filter for searches.
 | `AA_DEFAULT_SORT` | Default sort order for search results. | string (choice) | `relevance` |
 | `SHOW_RELEASE_SOURCE_LINKS` | Show clickable release-source links in release and details modals. Metadata provider links stay enabled. | boolean | `true` |
 | `SHOW_COMBINED_SELECTOR` | Show the option to search for and download both a book and audiobook together. | boolean | `true` |
+| `FORCE_COMBINED_SEARCH` | Force combined search whenever it's available. Locks the combined toggle on. | boolean | `false` |
 | `METADATA_PROVIDER` | Choose which metadata provider to use for book searches. | string (choice) | `openlibrary` |
 | `METADATA_PROVIDER_AUDIOBOOK` | Metadata provider for audiobook searches. Uses the book provider if not set. | string (choice) | _empty string_ |
 | `METADATA_PROVIDER_COMBINED` | Metadata provider for combined mode searches. Uses the book provider if not set. | string (choice) | _empty string_ |
@@ -269,6 +270,15 @@ Show the option to search for and download both a book and audiobook together.
 
 - **Type:** boolean
 - **Default:** `true`
+
+#### `FORCE_COMBINED_SEARCH`
+
+**Always Use Combined Search**
+
+Force combined search whenever it's available. Locks the combined toggle on.
+
+- **Type:** boolean
+- **Default:** `false`
 
 #### `METADATA_PROVIDER`
 
@@ -1283,7 +1293,7 @@ Delay between requests in seconds to avoid rate limiting (0-10).
 | `IRC_USE_TLS` | Enable TLS/SSL encryption for the IRC connection. Disable for servers that don't support TLS. | boolean | `true` |
 | `IRC_CHANNEL` | Channel name without the # prefix | string | _none_ |
 | `IRC_NICK` | Your IRC nickname (required). Must be unique on the IRC network. | string | _none_ |
-| `IRC_SEARCH_BOT` | The search bot to query for results | string | _none_ |
+| `IRC_SEARCH_BOT` | The search bot to address queries to (required). Searches are sent as `@<bot> <query>`. Without it, queries would be posted unaddressed to the channel, which reads as spam and can get your nick banned. | string | _none_ |
 | `IRC_CACHE_TTL` | How long to keep cached search results before they expire. | string (choice) | `2592000` |
 
 <details>
@@ -1341,10 +1351,11 @@ Your IRC nickname (required). Must be unique on the IRC network.
 
 **Search bot**
 
-The search bot to query for results
+The search bot to address queries to (required). Searches are sent as `@<bot> <query>`. Without it, queries would be posted unaddressed to the channel, which reads as spam and can get your nick banned.
 
 - **Type:** string
 - **Default:** _none_
+- **Required:** Yes
 
 #### `IRC_CACHE_TTL`
 

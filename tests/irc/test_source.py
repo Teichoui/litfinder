@@ -84,10 +84,26 @@ def test_search_no_dcc_offer_releases_connection_and_caches_empty_result(monkeyp
             self.channel = channel
             self.message = message
 
-        def wait_for_dcc(self, *, timeout: float, result_type: bool) -> None:
+        def wait_for_dcc(
+            self, *, timeout: float, result_type: bool, expected_senders: object = None
+        ) -> None:
             return None
 
     client = FakeClient()
+
+    # A search bot is required; make config report one so the channel send path runs.
+    monkeypatch.setattr(
+        irc_source,
+        "_config_text",
+        lambda key: {
+            "IRC_SERVER": "irc.example.net",
+            "IRC_CHANNEL": "ebooks",
+            "IRC_NICK": "tester",
+            "IRC_SEARCH_BOT": "search",
+        }.get(key, ""),
+    )
+    # Ensure no leftover cooldown entry from a previous test blocks the send.
+    irc_source._recent_query_times.clear()
 
     monkeypatch.setattr(source, "is_available", lambda: True)
     monkeypatch.setattr(irc_source, "_enforce_rate_limit", lambda: None)
@@ -137,3 +153,89 @@ def test_search_no_dcc_offer_releases_connection_and_caches_empty_result(monkeyp
             "online_servers": ["AudioBot"],
         }
     ]
+
+
+def test_search_without_search_bot_never_posts_to_channel(monkeypatch):
+    """A bare (unaddressed) query must never reach the channel; refuse to connect."""
+    import shelfmark.release_sources.irc.source as irc_source
+
+    source = IRCReleaseSource()
+
+    # Force is_available True so we exercise the in-search guard (defense in depth).
+    monkeypatch.setattr(source, "is_available", lambda: True)
+    monkeypatch.setattr(irc_source, "_emit_status", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(irc_source, "_enforce_rate_limit", lambda: None)
+    monkeypatch.setattr(
+        "shelfmark.release_sources.irc.cache.get_cached_results",
+        lambda provider, provider_id, *, content_type: None,
+    )
+    monkeypatch.setattr(
+        irc_source,
+        "_config_text",
+        lambda key: {
+            "IRC_SERVER": "irc.example.net",
+            "IRC_CHANNEL": "ebooks",
+            "IRC_NICK": "tester",
+            "IRC_SEARCH_BOT": "",  # not configured
+        }.get(key, ""),
+    )
+    irc_source._recent_query_times.clear()
+    monkeypatch.setattr(
+        "shelfmark.release_sources.irc.connection_manager.connection_manager.get_connection",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("must not connect/post without a search bot")
+        ),
+    )
+
+    book = BookMetadata(provider="hardcover", provider_id="nobot", title="No Bot")
+    plan = SimpleNamespace(title_variants=[SimpleNamespace(query="No Bot")])
+
+    assert source.search(book, plan, expand_search=True) == []
+
+
+def test_search_on_cooldown_returns_cache_without_reposting(monkeypatch):
+    """An identical query within the cooldown window must not be re-posted to the channel."""
+    import shelfmark.release_sources.irc.source as irc_source
+
+    source = IRCReleaseSource()
+    cached_release = Release(source="irc", source_id="cooldown-line", title="Cooldown Result")
+
+    monkeypatch.setattr(source, "is_available", lambda: True)
+    monkeypatch.setattr(irc_source, "_emit_status", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(irc_source, "_enforce_rate_limit", lambda: None)
+    monkeypatch.setattr(
+        irc_source,
+        "_config_text",
+        lambda key: {
+            "IRC_SERVER": "irc.example.net",
+            "IRC_CHANNEL": "ebooks",
+            "IRC_NICK": "tester",
+            "IRC_SEARCH_BOT": "search",
+        }.get(key, ""),
+    )
+    monkeypatch.setattr(
+        "shelfmark.release_sources.irc.cache.get_cached_results",
+        lambda provider, provider_id, *, content_type: {
+            "releases": [cached_release],
+            "online_servers": ["AudioBot"],
+        },
+    )
+    monkeypatch.setattr(
+        "shelfmark.release_sources.irc.connection_manager.connection_manager.get_connection",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("query on cooldown must not re-post to channel")
+        ),
+    )
+
+    # Pre-seed the cooldown so this exact query counts as "just sent".
+    irc_source._recent_query_times.clear()
+    irc_source._record_query_sent(irc_source._query_cooldown_key("ebooks", "On Cooldown"))
+
+    book = BookMetadata(provider="hardcover", provider_id="cd", title="On Cooldown")
+    plan = SimpleNamespace(title_variants=[SimpleNamespace(query="On Cooldown")])
+
+    # expand_search=True bypasses the top-level cache; only the cooldown gate stops the re-post.
+    releases = source.search(book, plan, expand_search=True)
+
+    assert releases == [cached_release]
+    assert source._online_servers == {"AudioBot"}
