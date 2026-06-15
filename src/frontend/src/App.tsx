@@ -1220,12 +1220,14 @@ function App() {
       release: Release,
       releaseContentType: ContentType,
       onBehalfOfUserId?: number,
+      destinationId?: string,
     ): Promise<void> => {
       const requestStartedAtSeconds = Date.now() / 1000;
       try {
         trackRelease(book.id, release.source_id);
+        const payload = buildReleaseDownloadPayload(book, release, releaseContentType);
         await downloadRelease(
-          buildReleaseDownloadPayload(book, release, releaseContentType),
+          destinationId ? { ...payload, destination_id: destinationId } : payload,
           onBehalfOfUserId,
         );
         await fetchStatus();
@@ -1646,6 +1648,7 @@ function App() {
     book: Book,
     release: Release,
     releaseContentType: ContentType,
+    destinationId?: string,
   ) => {
     policyTrace('release.action:start', {
       bookId: book.id,
@@ -1665,7 +1668,7 @@ function App() {
       return;
     }
 
-    await executeReleaseDownload(book, release, releaseContentType);
+    await executeReleaseDownload(book, release, releaseContentType, undefined, destinationId);
   };
 
   const handleReleaseRequest = useCallback(

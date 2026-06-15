@@ -45,6 +45,7 @@ import {
   FORMAT_SORT_KEY,
   sortReleasesByFormat,
 } from '../utils/releaseSort';
+import { useDownloadDestinations } from '../hooks/useDownloadDestinations';
 import { BookDownloadButton } from './BookDownloadButton';
 import { BookTargetDropdown } from './BookTargetDropdown';
 import { Dropdown } from './Dropdown';
@@ -140,7 +141,7 @@ const DEFAULT_COLUMN_CONFIG: ReleaseColumnConfig = {
 interface ReleaseModalProps {
   book: Book | null;
   onClose: () => void;
-  onDownload: (book: Book, release: Release, contentType: ContentType) => Promise<void>;
+  onDownload: (book: Book, release: Release, contentType: ContentType, destinationId?: string) => Promise<void>;
   onRequestRelease?: (book: Book, release: Release, contentType: ContentType) => Promise<void>;
   onRequestBook?: (book: Book, contentType: ContentType) => Promise<void>;
   getPolicyModeForSource?: (source: string, contentType: ContentType) => RequestPolicyMode;
@@ -758,6 +759,8 @@ const ReleaseModalSession = ({
     contentType === 'audiobook' && supportedAudiobookFormats.length > 0
       ? supportedAudiobookFormats
       : supportedFormats;
+  const destinations = useDownloadDestinations();
+  const [selectedDestinationId, setSelectedDestinationId] = useState<string>('auto');
   const [isRequestingBook, setIsRequestingBook] = useState(false);
   const [selectedRelease, setSelectedRelease] = useState<Release | null>(null);
   const isCombinedMode = combinedMode != null;
@@ -1194,7 +1197,8 @@ const ReleaseModalSession = ({
 
       const mode = getReleaseActionMode(release);
       if (mode === 'download') {
-        await onDownload(book, release, contentType);
+        const destId = selectedDestinationId !== 'auto' ? selectedDestinationId : undefined;
+        await onDownload(book, release, contentType, destId);
         handleClose();
         return;
       }
@@ -1213,6 +1217,7 @@ const ReleaseModalSession = ({
       onRequestRelease,
       contentType,
       handleClose,
+      selectedDestinationId,
     ],
   );
 
@@ -2078,6 +2083,29 @@ const ReleaseModalSession = ({
                 </div>
               )}
             </div>
+
+            {/* Destination picker - shown when named destinations are configured */}
+            {!isRequestMode && !isCombinedMode && destinations.length > 0 && (
+              <div className="flex items-center gap-2 border-b border-(--border-muted) bg-(--bg) px-5 py-2 sm:bg-(--bg-soft)">
+                <span className="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
+                  Save to:
+                </span>
+                <select
+                  value={selectedDestinationId}
+                  onChange={(e) => {
+                    setSelectedDestinationId(e.target.value);
+                  }}
+                  className="min-w-0 flex-1 rounded border border-(--border-muted) bg-(--bg) px-2 py-1 text-xs text-(--text) sm:max-w-xs"
+                >
+                  <option value="auto">Automatic (by type)</option>
+                  {destinations.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Manual query panel (below source tabs) */}
             {showManualQuery && (
