@@ -229,6 +229,10 @@ class BookMetadata:
     kavita_available: bool = False
     kavita_series_owned: int | None = None
 
+    # Audiobookshelf library availability (annotated after metadata search)
+    abs_available: bool = False
+    abs_series_owned: int | None = None
+
 
 def group_languages_by_localized_title(
     base_title: str,

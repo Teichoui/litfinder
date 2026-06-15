@@ -1,7 +1,9 @@
 """Shared title/author normalization for matching books across systems.
 
-Used by the Kavita inventory sync (write side) and the metadata search
-annotation (read side) so the keys line up. Keep both sides on these helpers.
+Used by the library inventory syncs (write side) and the metadata search
+annotation (read side) so the keys line up. Both the Kavita (ebook) and
+Audiobookshelf (audiobook) inventories share these helpers; keep every side on
+them so matches stay consistent.
 """
 
 from __future__ import annotations
@@ -58,7 +60,7 @@ def fold_series(value: object) -> str:
     """Colon-tolerant series key (no subtitle truncation, no article strip).
 
     Unlike :func:`normalize_title`, keeps the full name so series whose titles
-    contain a colon ("Yashahime: Princess Half-Demon") still match the Kavita
+    contain a colon ("Yashahime: Princess Half-Demon") still match the library
     series name ("Yashahime - Princess Half-Demon").
     """
     return _fold(value)

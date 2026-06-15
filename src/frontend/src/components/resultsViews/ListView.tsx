@@ -6,7 +6,7 @@ import { bookSupportsTargets } from '../../utils/bookTargetLoader';
 import { getFormatColor, getLanguageColor } from '../../utils/colorMaps';
 import { BookActionButton } from '../BookActionButton';
 import { BookTargetDropdown } from '../BookTargetDropdown';
-import { DisplayFieldIcon, DisplayFieldBadge, KavitaBadge } from '../shared';
+import { DisplayFieldIcon, DisplayFieldBadge, LibraryBadge } from '../shared';
 
 interface ListViewProps {
   books: Book[];
@@ -202,9 +202,12 @@ export const ListView = ({
                     {book.author || 'Unknown author'}
                     {book.year && <span className="sm:hidden"> • {book.year}</span>}
                   </p>
-                  {(book.kavita_series_owned ?? 0) > 0 && (
+                  {((book.kavita_series_owned ?? 0) > 0 ||
+                    book.kavita_available ||
+                    (book.abs_series_owned ?? 0) > 0 ||
+                    book.abs_available) && (
                     <div className="mt-1 scale-90 origin-left">
-                      <KavitaBadge book={book} variant="inline" />
+                      <LibraryBadge book={book} variant="inline" />
                     </div>
                   )}
                 </div>
