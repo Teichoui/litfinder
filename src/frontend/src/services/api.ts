@@ -59,6 +59,7 @@ const API = {
   activityDismiss: `${API_BASE}/activity/dismiss`,
   activityDismissMany: `${API_BASE}/activity/dismiss-many`,
   activityHistory: `${API_BASE}/activity/history`,
+  downloadDestinations: `${API_BASE}/download-destinations`,
   libraryFolders: `${API_BASE}/library-folders`,
   libraryOrganize: `${API_BASE}/library/organize`,
   libraryLs: `${API_BASE}/library/ls`,
@@ -507,6 +508,19 @@ export type DownloadReleasePayload = {
   subtitle?: string;
   search_author?: string;
   search_mode?: 'direct' | 'universal';
+  destination_id?: string; // Chosen save location from the destination picker ("auto" = default)
+};
+
+// A named save-location for the per-download destination picker
+export type DownloadDestination = {
+  id: string;
+  label: string;
+  path: string;
+};
+
+export const getDownloadDestinations = async (): Promise<DownloadDestination[]> => {
+  const data = await fetchJSON<{ destinations?: DownloadDestination[] }>(API.downloadDestinations);
+  return data.destinations ?? [];
 };
 
 export const downloadRelease = async (

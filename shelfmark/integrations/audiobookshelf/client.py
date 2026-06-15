@@ -144,8 +144,8 @@ def _parse_isbn(raw: object) -> tuple[str | None, str | None]:
     text = str(raw or "").replace("-", "").strip()
     if len(text) == 13 and text.isdigit():
         return text, None
-    if len(text) == 10:
-        return None, text
+    if len(text) == 10 and text[:9].isdigit() and (text[9].isdigit() or text[9].upper() == "X"):
+        return None, text.upper()
     return None, None
 
 
@@ -199,7 +199,7 @@ def abs_iter_inventory(cfg: AbsConfig, library_ids: list[int]) -> Iterator[dict[
                 "kind": "book",
                 "library_id": library_id,
                 "series_id": None,
-                "series_name": series_name or title,
+                "series_name": series_name,
                 "title": title,
                 "author": author,
                 "isbn_13": isbn_13,

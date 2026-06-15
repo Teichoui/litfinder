@@ -16,7 +16,6 @@ from shelfmark.integrations.audiobookshelf.client import (
     AbsConfig,
     AbsError,
     abs_iter_inventory,
-    abs_list_libraries,
 )
 
 if TYPE_CHECKING:
@@ -97,7 +96,14 @@ def run_abs_sync(overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
         library_ids: list[Any] = list(_selected_library_ids(overrides))
         records = list(abs_iter_inventory(cfg, library_ids))
         result = inventory.replace_inventory(records)
-        libraries = len(library_ids) if library_ids else len(abs_list_libraries(cfg))
+        # Count distinct library IDs seen in the records rather than making a
+        # second abs_list_libraries() call (which would mask a successful sync
+        # as a failure if ABS is momentarily unavailable after the write).
+        if library_ids:
+            libraries = len(library_ids)
+        else:
+            seen_lib_ids: set[Any] = {r.get("library_id") for r in records if r.get("library_id")}
+            libraries = len(seen_lib_ids)
         books = len(records)
         new_books = result.get("new_books") or []
         logger.info(

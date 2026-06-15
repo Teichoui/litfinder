@@ -132,6 +132,10 @@ class DownloadTask:
         default_factory=dict
     )  # Per-output parameters (e.g. email recipient)
 
+    # Per-download destination override (absolute path) chosen via the download
+    # destination picker. None/empty means automatic content-type routing (default).
+    destination_override: str | None = None
+
     # User association (multi-user support)
     user_id: int | None = None  # DB user ID who queued this download
     username: str | None = None  # Username for {User} template variable

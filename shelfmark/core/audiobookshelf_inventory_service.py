@@ -167,15 +167,16 @@ class AbsInventoryService:
                     )
 
         with self._lock, self._connect() as conn:
-            existing = {
-                _book_identity(*row)
-                for row in conn.execute(
-                    "SELECT isbn_13, isbn_10, norm_series_full, series_index, "
-                    "norm_title, norm_author FROM abs_inventory WHERE kind = 'book'"
-                )
-            }
+            prior_rows = conn.execute(
+                "SELECT isbn_13, isbn_10, norm_series_full, series_index, "
+                "norm_title, norm_author FROM abs_inventory WHERE kind = 'book'"
+            ).fetchall()
+            # had_existing is based on the actual row count, not the identifiable
+            # subset — so an inventory of all-unidentifiable books still sets the
+            # baseline correctly and suppresses false new-arrival notifications.
+            had_existing = bool(prior_rows)
+            existing = {_book_identity(*row) for row in prior_rows}
             existing.discard(None)
-            had_existing = bool(existing)
             conn.execute("DELETE FROM abs_inventory")
             conn.executemany(
                 """
@@ -287,6 +288,21 @@ class AbsInventoryService:
                         LIMIT 1
                         """,
                         (full_s, vol),
+                    )
+                    if cur.fetchone():
+                        return True
+
+                # Title-only fallback for items with no author stored (mirrors
+                # the Kavita inventory service to prevent silent divergence).
+                if norm_t and not norm_a:
+                    cur = conn.execute(
+                        """
+                        SELECT 1 FROM abs_inventory
+                        WHERE norm_title = ? AND (norm_author IS NULL OR norm_author = '')
+                          AND series_index IS NOT NULL AND kind = 'book'
+                        LIMIT 1
+                        """,
+                        (norm_t,),
                     )
                     if cur.fetchone():
                         return True

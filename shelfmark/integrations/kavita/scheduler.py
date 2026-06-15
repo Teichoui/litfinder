@@ -36,8 +36,9 @@ def validate_cron(expression: str) -> CronTrigger:
 def _ensure_scheduler() -> BackgroundScheduler:
     global _scheduler
     if _scheduler is None:
-        _scheduler = BackgroundScheduler(timezone=UTC)
-        _scheduler.start()
+        scheduler = BackgroundScheduler(timezone=UTC)
+        scheduler.start()
+        _scheduler = scheduler
         logger.info("Kavita scheduler started")
     return _scheduler
 
