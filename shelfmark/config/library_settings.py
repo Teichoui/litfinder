@@ -20,7 +20,7 @@ from shelfmark.core.settings_registry import (
 logger = setup_logger(__name__)
 
 
-@register_settings("library_folders", "Library Folders", icon="folder", order=22)
+@register_settings("library_folders", "Library Folders", icon="folder", order=14)
 def library_folders_settings() -> list[SettingsField]:
     """Universal library-folder registry used by the Files manager and downloads."""
     return [
