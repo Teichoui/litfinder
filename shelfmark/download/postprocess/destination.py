@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import uuid
 from contextlib import suppress
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from shelfmark.core.logger import setup_logger
@@ -20,6 +19,7 @@ from shelfmark.release_sources import SourceUnavailableError, get_source
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from shelfmark.core.models import DownloadTask
 
@@ -76,35 +76,6 @@ def validate_destination(
 
 def get_final_destination(task: DownloadTask) -> Path:
     """Get final destination directory, with content-type routing support."""
-    # An explicit per-download destination (chosen in the download picker) wins
-    # over both source overrides and content-type routing.  Re-validate it
-    # against the current allowed-destinations list so that:
-    # (a) a stale retry payload pointing to a now-removed folder falls back
-    #     gracefully rather than writing outside allowed roots, and
-    # (b) the containment invariant is upheld independently of how
-    #     destination_override was set.
-    if task.destination_override:
-        from shelfmark.core.utils import get_named_download_destinations
-
-        candidate = Path(task.destination_override)
-        allowed = {
-            Path(d["path"])
-            for d in get_named_download_destinations(
-                user_id=task.user_id, username=task.username
-            )
-        }
-        if any(
-            candidate == allowed_path
-            or str(candidate).startswith(str(allowed_path).rstrip("/") + "/")
-            for allowed_path in allowed
-        ):
-            return candidate
-        logger.warning(
-            "destination_override '%s' is not within any current allowed destination; "
-            "falling back to automatic content-type routing",
-            candidate,
-        )
-
     is_audiobook = check_audiobook(task.content_type)
 
     try:

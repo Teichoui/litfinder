@@ -11,8 +11,7 @@
 > **This fork adds:**
 > - **Kavita & Audiobookshelf integration** — live inventory sync so search results show "already owned" badges for books and series you already have in your library
 > - **In-app file manager** — browse, rename, move, and create folders within any configured library folder directly from the UI (Files button in header)
-> - **Per-download destination picker** — choose exactly where each download lands (Ebooks, Audiobooks, or any Library Folder) instead of always routing by content type
-> - **Library Folders registry** — a universal folder list under Settings → Library Folders, shared by the file manager and destination picker; works with any library server
+> - **Library Folders registry** — a universal folder list under Settings → Library Folders, shared by the file manager; works with any library server
 > - **Custom source plugin system** — install third-party source plugins into your config directory without modifying the container; plugins are auto-installed on startup ([LitFinder-Custom-Sources](https://github.com/NemesisHubris/LitFinder-Custom-Sources))
 > - **"Leave in Place" output handler** — a noop delivery mode that skips moving the file after download, leaving it wherever the download client put it
 > - **Multi-book flat-folder grouping** — when a download lands as a flat folder of files from multiple books, automatically splits them into per-book subfolders before delivery
@@ -193,8 +192,7 @@ LitFinder is a manual search and download tool — the entry point to your book 
 **This fork extends that scope in a few targeted ways:**
 
 - **Library awareness** — Kavita and Audiobookshelf inventory syncs surface "already owned" badges on search results, so you don't re-download what you already have. This is a read-only snapshot; LitFinder never writes to your library.
-- **File manager** — a scoped, in-app browser for the folders you configure. Useful for tidying up downloaded files without leaving the UI.
-- **Destination routing** — a per-download dropdown so a single download can land in the right folder without changing global settings.
+- **File manager** — a scoped, in-app browser for the folders you configure. Downloads still land via normal content-type routing; use the file manager afterward if you want to move something.
 
 What the fork still does not do, and has no plans to do:
 

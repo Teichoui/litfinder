@@ -23,7 +23,7 @@ from shelfmark.core.request_helpers import (
     normalize_positive_int,
 )
 from shelfmark.core.utils import is_audiobook as check_audiobook
-from shelfmark.core.utils import resolve_named_download_destination, transform_cover_url
+from shelfmark.core.utils import transform_cover_url
 from shelfmark.download.fs import run_blocking_io
 from shelfmark.download.postprocess.pipeline import is_torrent_source, safe_cleanup_path
 from shelfmark.download.postprocess.router import post_process_download
@@ -263,15 +263,6 @@ def queue_release(
         output_args: dict[str, Any] = {}
         retry_resolution_fields = _build_retry_resolution_fields(release_data)
 
-        # Per-download destination chosen in the download picker. Resolved to an
-        # absolute path from the known destination list (server-side) so a client
-        # can't steer the file to an arbitrary location; None keeps auto routing.
-        destination_override = resolve_named_download_destination(
-            release_data.get("destination_id"),
-            user_id=user_id,
-            username=username,
-        )
-
         if output_mode == "email" and not is_audiobook:
             email_to, email_error = _resolve_email_destination(user_id=user_id)
             if email_error:
@@ -297,7 +288,6 @@ def queue_release(
             search_mode=search_mode,
             output_mode=output_mode,
             output_args=output_args,
-            destination_override=destination_override,
             priority=priority,
             user_id=user_id,
             username=username,
@@ -432,7 +422,6 @@ def serialize_task_for_retry(task: DownloadTask) -> dict[str, Any]:
         "search_mode": search_mode,
         "output_mode": getattr(task, "output_mode", None),
         "output_args": dict(raw_output_args) if isinstance(raw_output_args, dict) else {},
-        "destination_override": getattr(task, "destination_override", None),
         "user_id": getattr(task, "user_id", None),
         "username": getattr(task, "username", None),
         "request_id": getattr(task, "request_id", None),
@@ -486,7 +475,6 @@ def _restore_task_from_retry_payload(payload: object) -> DownloadTask | None:
         search_mode=search_mode,
         output_mode=normalize_optional_text(payload.get("output_mode")),
         output_args=dict(output_args) if isinstance(output_args, dict) else {},
-        destination_override=normalize_optional_text(payload.get("destination_override")),
         user_id=normalize_positive_int(payload.get("user_id")),
         username=normalize_optional_text(payload.get("username")),
         request_id=normalize_positive_int(payload.get("request_id")),

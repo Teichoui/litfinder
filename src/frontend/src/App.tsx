@@ -219,7 +219,6 @@ type PendingOnBehalfDownload =
       release: Release;
       releaseContentType: ContentType;
       actingAsUser: ActingAsUserSelection;
-      destinationId?: string;
     }
   | {
       type: 'combined';
@@ -1221,16 +1220,12 @@ function App() {
       release: Release,
       releaseContentType: ContentType,
       onBehalfOfUserId?: number,
-      destinationId?: string,
     ): Promise<void> => {
       const requestStartedAtSeconds = Date.now() / 1000;
       try {
         trackRelease(book.id, release.source_id);
         const payload = buildReleaseDownloadPayload(book, release, releaseContentType);
-        await downloadRelease(
-          destinationId ? { ...payload, destination_id: destinationId } : payload,
-          onBehalfOfUserId,
-        );
+        await downloadRelease(payload, onBehalfOfUserId);
         await fetchStatus();
         removeBookFromActiveList(book);
       } catch (error) {
@@ -1425,7 +1420,6 @@ function App() {
           effectivePendingOnBehalfDownload.release,
           effectivePendingOnBehalfDownload.releaseContentType,
           onBehalfOfUserId,
-          effectivePendingOnBehalfDownload.destinationId,
         );
       }
       setPendingOnBehalfDownload(null);
@@ -1650,7 +1644,6 @@ function App() {
     book: Book,
     release: Release,
     releaseContentType: ContentType,
-    destinationId?: string,
   ) => {
     policyTrace('release.action:start', {
       bookId: book.id,
@@ -1666,12 +1659,11 @@ function App() {
         release,
         releaseContentType,
         actingAsUser: effectiveActingAsUser,
-        destinationId,
       });
       return;
     }
 
-    await executeReleaseDownload(book, release, releaseContentType, undefined, destinationId);
+    await executeReleaseDownload(book, release, releaseContentType, undefined);
   };
 
   const handleReleaseRequest = useCallback(

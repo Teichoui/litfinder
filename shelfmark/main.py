@@ -88,7 +88,7 @@ from shelfmark.core.requests_service import (
     sync_delivery_states_from_queue_status,
 )
 from shelfmark.core.user_db import UserDB
-from shelfmark.core.utils import get_named_download_destinations, normalize_base_path
+from shelfmark.core.utils import normalize_base_path
 from shelfmark.download import orchestrator as backend
 from shelfmark.release_sources import (
     BrowseRecord,
@@ -1131,24 +1131,6 @@ def api_download_release() -> Response | tuple[Response, int]:
     except _OPERATIONAL_ERRORS as e:
         logger.error_trace(f"Release download error: {e}")
         return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/download-destinations", methods=["GET"])
-@login_required
-def api_download_destinations() -> Response | tuple[Response, int]:
-    """List named destinations for the per-download save-location picker.
-
-    Returns Shelfmark's typed folders (Ebooks, Audiobooks) plus the configured
-    library folders. The frontend prepends an "Automatic (by type)" default.
-    """
-    try:
-        db_user_id = get_session_db_user_id(session)
-        username = session.get("user_id")
-        destinations = get_named_download_destinations(user_id=db_user_id, username=username)
-        return jsonify({"destinations": destinations})
-    except _OPERATIONAL_ERRORS as e:
-        logger.error_trace(f"Download destinations error: {e}")
-        return jsonify({"destinations": []})
 
 
 @app.route("/api/config", methods=["GET"])
