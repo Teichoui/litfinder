@@ -5,6 +5,22 @@
 > [!IMPORTANT]
 > This is an **actively maintained community fork** of [calibrain/shelfmark](https://github.com/calibrain/shelfmark). New features, bug fixes, and improvements are added here. The upstream project is no longer under active maintenance.
 
+> [!NOTE]
+> **This fork adds:**
+> - **Kavita & Audiobookshelf integration** — live inventory sync so search results show "already owned" badges for books and series you already have in your library
+> - **In-app file manager** — browse, rename, move, and create folders within any configured library folder directly from the UI (Files button in header)
+> - **Per-download destination picker** — choose exactly where each download lands (Ebooks, Audiobooks, or any Library Folder) instead of always routing by content type
+> - **Library Folders registry** — a universal folder list under Settings → Library Folders, shared by the file manager and destination picker; works with any library server
+> - **Custom source plugin system** — install third-party source plugins into your config directory without modifying the container; plugins are auto-installed on startup ([LitFinder-Custom-Sources](https://github.com/NemesisHubris/LitFinder-Custom-Sources))
+> - **"Leave in Place" output handler** — a noop delivery mode that skips moving the file after download, leaving it wherever the download client put it
+> - **Multi-book flat-folder grouping** — when a download lands as a flat folder of files from multiple books, automatically splits them into per-book subfolders before delivery
+> - **Richer title search** — multi-variant query generation strips edition markers, volume labels, and bracket annotations so the same book matches even when sources index it differently
+> - **Language auto-detection** — detects book language from Anna's Archive distant-mirror paths so results are tagged correctly without a manual language field
+> - **Activity feed display names** — admin users see real display names in the activity feed instead of raw user IDs
+> - **Fuzzy title/author/ISBN matching** — shared utility for matching books across integrations using normalised, accent-folded comparisons
+> - **Bug fixes** — AA slow-download infinite loop cap, empty destination dir cleanup on write-probe failure, activity snapshot refresh after cancel, rTorrent audiobook label, mirror URL query param handling, notification proxy passthrough, Transmission 100% complete detection
+> - **Upstream ports** — IRC anti-spam cooldown + bot requirement, `?content_type=combined` URL param + `FORCE_COMBINED_SEARCH` setting, 7 security vulnerability fixes
+
 LitFinder is a self-hosted web interface for searching and requesting books and audiobooks across multiple sources. Bring your own sources, metadata providers, and download clients to build a single hub for your digital library. Supports multiple users with a built-in request system, so you can share your instance with others and let them browse and request books on their own.
 
 Works great alongside the following library tools, with support for automatic imports:
@@ -24,7 +40,6 @@ Works great alongside the following library tools, with support for automatic im
 - **Authentication** - Built-in login, OIDC single sign-on, proxy auth, and Calibre-Web database support
 - **Real-Time Progress** - Unified download queue with live status updates across all sources
 - **Network Flexibility** - Configurable proxy support, DNS settings, and optional Cloudflare handling for protected sources
-
 
 ## 🚀 Quick Start
 
@@ -171,16 +186,19 @@ With any authentication method enabled, LitFinder supports multi-user management
 
 ## Project Scope
 
-LitFinder is a manual search and download tool, the entry point to your book library, not a library manager. It finds books, downloads them, and sends them to a configured destination. That's the full scope.
+LitFinder is a manual search and download tool — the entry point to your book library, not a library manager. It finds books, downloads them, and sends them to a configured destination.
 
-LitFinder intentionally does not:
+**This fork extends that scope in a few targeted ways:**
 
-- **Track or manage your library** - it doesn't know or care what you already own
-- **Integrate with library software** - what happens after delivery is up to your library tool
-- **Monitor authors, series, or new releases** - there is no background automation
-- **Queue future downloads** - if a book isn't available now, LitFinder won't watch for it
+- **Library awareness** — Kavita and Audiobookshelf inventory syncs surface "already owned" badges on search results, so you don't re-download what you already have. This is a read-only snapshot; LitFinder never writes to your library.
+- **File manager** — a scoped, in-app browser for the folders you configure. Useful for tidying up downloaded files without leaving the UI.
+- **Destination routing** — a per-download dropdown so a single download can land in the right folder without changing global settings.
 
-These are non-goals, not missing features.
+What the fork still does not do, and has no plans to do:
+
+- **Manage your library** — it does not catalogue, tag, edit metadata, or restructure your collection
+- **Monitor for new releases** — there is no watchlist, author alert, or "notify me when available" queue
+- **Queue unavailable titles** — if a book isn't available now, LitFinder won't watch for it
 
 ## Contributing
 
