@@ -251,5 +251,14 @@ dev-nzbget/
 secrets/
 dev-rtorrent/
 docker-compose.test-env.yml
+
+# Media dev environment (Audiobookshelf + Calibre) — local sample content & compose, never commit
+dev-media-*/
+Dockerfile.dev
+docker-compose.media-dev.yml
+setup-media-dev.sh
+cleanup-media-dev.sh
+check-media-dev-status.sh
+populate-test-content.sh
 /data/
 !/data/book-languages.json
