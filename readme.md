@@ -2,7 +2,7 @@
 
 <img src="src/frontend/public/logo.png" alt="LitFinder" width="200">
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/kindlemodshelfguy)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nemisishubris)
 
 > [!IMPORTANT]
 > This is an **actively maintained community fork** of [calibrain/shelfmark](https://github.com/calibrain/shelfmark). New features, bug fixes, and improvements are added here. The upstream project is no longer under active maintenance.
@@ -270,4 +270,4 @@ Bug reports and questions → [open an issue](https://github.com/NemesisHubris/l
 
 If LitFinder saves you time, a coffee helps keep it going:
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/kindlemodshelfguy)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nemisishubris)
