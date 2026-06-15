@@ -225,6 +225,10 @@ class BookMetadata:
     # Maps language code (e.g., "de", "German") to localized title
     titles_by_language: dict[str, str] = field(default_factory=dict)
 
+    # Kavita library availability (annotated after metadata search)
+    kavita_available: bool = False
+    kavita_series_owned: int | None = None
+
 
 def group_languages_by_localized_title(
     base_title: str,

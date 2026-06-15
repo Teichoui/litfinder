@@ -57,6 +57,8 @@ export interface Book {
   username?: string;
   display_name?: string | null;
   retry_available?: boolean;
+  kavita_available?: boolean; // Already present in the Kavita library
+  kavita_series_owned?: number; // Count of this series' books already in Kavita
 }
 
 // Status response types
