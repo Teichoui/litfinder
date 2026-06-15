@@ -219,6 +219,7 @@ type PendingOnBehalfDownload =
       release: Release;
       releaseContentType: ContentType;
       actingAsUser: ActingAsUserSelection;
+      destinationId?: string;
     }
   | {
       type: 'combined';
@@ -1424,6 +1425,7 @@ function App() {
           effectivePendingOnBehalfDownload.release,
           effectivePendingOnBehalfDownload.releaseContentType,
           onBehalfOfUserId,
+          effectivePendingOnBehalfDownload.destinationId,
         );
       }
       setPendingOnBehalfDownload(null);
@@ -1664,6 +1666,7 @@ function App() {
         release,
         releaseContentType,
         actingAsUser: effectiveActingAsUser,
+        destinationId,
       });
       return;
     }
