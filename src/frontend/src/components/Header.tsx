@@ -36,6 +36,7 @@ interface HeaderProps {
   isLoading?: boolean;
   onDownloadsClick?: () => void;
   onSettingsClick?: () => void;
+  onLibraryManagerClick?: () => void;
   isAdmin?: boolean;
   canAccessSettings?: boolean;
   statusCounts?: ActivityStatusCounts;
@@ -97,6 +98,7 @@ export const Header = forwardRef<HeaderHandle, HeaderProps>(
       isLoading = false,
       onDownloadsClick,
       onSettingsClick,
+      onLibraryManagerClick,
       isAdmin = false,
       canAccessSettings,
       statusCounts = { ongoing: 0, completed: 0, errored: 0, pendingRequests: 0 },
@@ -400,6 +402,33 @@ export const Header = forwardRef<HeaderHandle, HeaderProps>(
               )}
             </div>
             <span className="hidden text-sm font-medium sm:inline">Activity</span>
+          </button>
+        )}
+
+        {/* Library Manager Button */}
+        {onLibraryManagerClick && (
+          <button
+            type="button"
+            onClick={onLibraryManagerClick}
+            className="hover-action relative flex items-center gap-2 rounded-full px-3 py-2 text-gray-900 transition-all duration-200 dark:text-gray-100"
+            aria-label="Library Manager"
+            title="Library Manager"
+          >
+            <svg
+              className="h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth="1.5"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+              />
+            </svg>
+            <span className="hidden text-sm font-medium sm:inline">Library</span>
           </button>
         )}
 

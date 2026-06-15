@@ -208,6 +208,13 @@ register_group(
     order=12,  # Between Network (10) and Advanced (15)
 )
 
+register_group(
+    "integrations",
+    "Integrations",
+    icon="puzzle",
+    order=13,  # Library servers: Kavita, Audiobookshelf, etc.
+)
+
 
 # Direct mode sort options
 _AA_SORT_OPTIONS = [

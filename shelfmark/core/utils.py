@@ -154,6 +154,19 @@ _LEGACY_CONTENT_TYPE_TO_CONFIG_KEY = {
     "other": "INGEST_DIR_OTHER",
 }
 
+
+def get_library_folders() -> list[dict[str, str]]:
+    """Return configured library folders as [{name, path}, ...] dicts."""
+    from shelfmark.core.config import config
+
+    folders = config.get("LIBRARY_FOLDERS") or []
+    return [
+        {"name": str(f.get("name", "")).strip(), "path": str(f.get("path", "")).strip()}
+        for f in folders
+        if isinstance(f, dict) and f.get("name") and f.get("path")
+    ]
+
+
 _USER_PLACEHOLDER_PATTERN = re.compile(r"\{user\}", re.IGNORECASE)
 _INVALID_USER_PATH_CHARS = re.compile(r'[\\/:*?"<>|]')
 

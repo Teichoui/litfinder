@@ -528,6 +528,7 @@ def _queue_status_for_routes(user_id: int | None = None) -> dict[str, dict[str, 
 if user_db is not None:
     try:
         from shelfmark.core.activity_routes import register_activity_routes
+        from shelfmark.core.library_routes import register_library_routes
         from shelfmark.core.request_routes import register_request_routes
 
         register_request_routes(
@@ -537,6 +538,7 @@ if user_db is not None:
             queue_release=_queue_release_for_routes,
             ws_manager=ws_manager,
         )
+        register_library_routes(app, resolve_auth_mode=_resolve_auth_mode_for_routes)
         if download_history_service is not None and activity_view_state_service is not None:
             register_activity_routes(
                 app,
@@ -3218,6 +3220,7 @@ def api_settings_get_all() -> Response | tuple[Response, int]:
         import_module("shelfmark.config.settings")
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
+        import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import serialize_all_settings
 
         data = serialize_all_settings(include_values=True)
@@ -3247,6 +3250,7 @@ def api_settings_get_tab(tab_name: str) -> Response | tuple[Response, int]:
         import_module("shelfmark.config.settings")
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
+        import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import get_settings_tab, serialize_tab
         from shelfmark.release_sources import _apply_deferred_field_updates
 
@@ -3285,6 +3289,7 @@ def api_settings_update_tab(tab_name: str) -> Response | tuple[Response, int]:
         import_module("shelfmark.config.settings")
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
+        import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import (
             get_settings_tab,
             update_settings,
@@ -3336,6 +3341,7 @@ def api_settings_execute_action(tab_name: str, action_key: str) -> Response | tu
         import_module("shelfmark.config.settings")
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
+        import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import execute_action
 
         # Get current form values if provided (for testing with unsaved values)

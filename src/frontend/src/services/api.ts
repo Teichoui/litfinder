@@ -59,6 +59,11 @@ const API = {
   activityDismiss: `${API_BASE}/activity/dismiss`,
   activityDismissMany: `${API_BASE}/activity/dismiss-many`,
   activityHistory: `${API_BASE}/activity/history`,
+  libraryFolders: `${API_BASE}/library-folders`,
+  libraryOrganize: `${API_BASE}/library/organize`,
+  libraryLs: `${API_BASE}/library/ls`,
+  libraryRename: `${API_BASE}/library/rename`,
+  libraryMkdir: `${API_BASE}/library/mkdir`,
 };
 
 // Custom error class for authentication failures
@@ -1001,3 +1006,61 @@ export const updateSelfUser = async (
     body: JSON.stringify(data),
   });
 };
+
+// Library file-management types and functions
+export interface LibraryFolder {
+  name: string;
+  path: string;
+}
+
+export interface DirEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'dir';
+  size?: number;
+  modified?: number;
+  extension?: string;
+}
+
+export interface OrganizeFilesResponse {
+  success: boolean;
+  moved_files: Array<{ original_path: string; new_path: string }>;
+  failed_files: Array<{ path: string; error: string }>;
+  summary: string;
+}
+
+export const fetchLibraryFolders = async (): Promise<LibraryFolder[]> => {
+  return fetchJSON<LibraryFolder[]>(API.libraryFolders);
+};
+
+export const organizeFiles = async (
+  files: Array<{ path: string }>,
+  targetFolder: string,
+): Promise<OrganizeFilesResponse> =>
+  fetchJSON<OrganizeFilesResponse>(API.libraryOrganize, {
+    method: 'POST',
+    body: JSON.stringify({ files, target_folder: targetFolder }),
+  });
+
+export const listDirectory = async (path: string): Promise<{ path: string; entries: DirEntry[] }> => {
+  const params = new URLSearchParams({ path });
+  return fetchJSON(`${API.libraryLs}?${params}`);
+};
+
+export const renameEntry = async (
+  path: string,
+  newName: string,
+): Promise<{ success: boolean; new_path: string }> =>
+  fetchJSON(API.libraryRename, {
+    method: 'POST',
+    body: JSON.stringify({ path, new_name: newName }),
+  });
+
+export const makeDirectory = async (
+  parentPath: string,
+  name: string,
+): Promise<{ success: boolean; path: string }> =>
+  fetchJSON(API.libraryMkdir, {
+    method: 'POST',
+    body: JSON.stringify({ parent_path: parentPath, name }),
+  });

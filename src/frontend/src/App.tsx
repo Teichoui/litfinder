@@ -16,6 +16,7 @@ import { RequestConfirmationModal } from './components/RequestConfirmationModal'
 import { ResultsSection } from './components/ResultsSection';
 import { SearchSection } from './components/SearchSection';
 import { SelfSettingsModal, SettingsModal } from './components/settings';
+import { LibraryManagerModal } from './components/library';
 import { ToastContainer } from './components/ToastContainer';
 import { UrlSearchBootstrapMount } from './components/UrlSearchBootstrapMount';
 import { SearchModeProvider } from './contexts/SearchModeContext';
@@ -667,6 +668,14 @@ function App() {
     setConfigBannerOpen(true);
   }, [authIsAdmin, config?.settings_enabled]);
 
+  const handleLibraryManagerClick = useCallback(() => {
+    setLibraryManagerOpen(true);
+  }, []);
+
+  const handleLibraryManagerClose = useCallback(() => {
+    setLibraryManagerOpen(false);
+  }, []);
+
   const headerRef = useCallback((el: HTMLDivElement | null) => {
     if (headerObserverRef.current) {
       headerObserverRef.current.disconnect();
@@ -682,6 +691,7 @@ function App() {
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selfSettingsOpen, setSelfSettingsOpen] = useState(false);
+  const [libraryManagerOpen, setLibraryManagerOpen] = useState(false);
   const [configBannerOpen, setConfigBannerOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   useShowOnboardingDebug({
@@ -2386,6 +2396,7 @@ function App() {
           onSearchChange={handleActiveQueryValueChange}
           onDownloadsClick={toggleDownloadsSidebar}
           onSettingsClick={handleSettingsClick}
+          onLibraryManagerClick={handleLibraryManagerClick}
           isAdmin={requestRoleIsAdmin}
           canAccessSettings={isAuthenticated}
           username={username}
@@ -2710,6 +2721,11 @@ function App() {
         onClose={() => setSelfSettingsOpen(false)}
         onShowToast={showToast}
         onSettingsSaved={handleSettingsSaved}
+      />
+
+      <LibraryManagerModal
+        isOpen={libraryManagerOpen}
+        onClose={handleLibraryManagerClose}
       />
 
       {/* Auto-show banner on startup for users without config */}
