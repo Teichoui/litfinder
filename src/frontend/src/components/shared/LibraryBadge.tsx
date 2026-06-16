@@ -17,16 +17,19 @@ const buildPills = (book: Book): Pill[] => {
   const total =
     typeof book.series_count === 'number' && book.series_count > 0 ? book.series_count : null;
 
-  // Ebook library (Kavita)
-  const ebookOwned = book.kavita_series_owned;
-  if (typeof ebookOwned === 'number' && ebookOwned > 0) {
+  // Ebook library — Kavita and Calibre-Web / CWA are both ebook libraries, so
+  // their ownership folds into a single indicator. Series coverage uses the
+  // larger of the two counts; "in library" is true if either server has it.
+  const ebookOwned = Math.max(book.kavita_series_owned ?? 0, book.calibre_series_owned ?? 0);
+  const ebookAvailable = Boolean(book.kavita_available || book.calibre_available);
+  if (ebookOwned > 0) {
     pills.push({
       key: 'ebook-series',
       label: `Library ${ebookOwned}${total ? `/${total}` : ''}`,
       className: 'border border-indigo-700 bg-indigo-600',
       title: 'Books of this series already in your ebook library',
     });
-  } else if (book.kavita_available) {
+  } else if (ebookAvailable) {
     pills.push({
       key: 'ebook',
       label: 'In Library',
@@ -62,8 +65,7 @@ export const LibraryBadge = ({ book, variant = 'inline' }: LibraryBadgeProps) =>
     return null;
   }
 
-  const base =
-    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-white';
+  const base = 'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-white';
   const overlayShadow =
     variant === 'overlay'
       ? { boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)' }

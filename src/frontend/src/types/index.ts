@@ -61,6 +61,8 @@ export interface Book {
   kavita_series_owned?: number; // Count of this series' books already in Kavita
   abs_available?: boolean; // Already present in the Audiobookshelf library
   abs_series_owned?: number; // Count of this series' books already in Audiobookshelf
+  calibre_available?: boolean; // Already present in the Calibre-Web / CWA library
+  calibre_series_owned?: number; // Count of this series' books already in Calibre-Web / CWA
 }
 
 // Status response types

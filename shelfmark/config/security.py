@@ -86,6 +86,7 @@ def security_settings() -> list[SettingsField]:
         {"label": "Proxy Authentication", "value": "proxy"},
         {"label": "OIDC (OpenID Connect)", "value": "oidc"},
         {"label": "Calibre-Web Database", "value": "cwa"},
+        {"label": "Kavita", "value": "kavita"},
     ]
 
     fields = [
@@ -135,6 +136,17 @@ def security_settings() -> list[SettingsField]:
                     show_when=_auth_condition("cwa"),
                 ),
             ]
+        ),
+        CustomComponentField(
+            key="kavita_login_hint",
+            component="oidc_admin_hint",
+            label=(
+                "Set the Kavita URL in the Kavita settings tab. Users can then sign in "
+                "with their Kavita username and password. A local admin account is "
+                "required as a fallback, and admins can still sign in with their local "
+                "password so a Kavita outage never locks you out."
+            ),
+            show_when=_auth_condition("kavita"),
         ),
         ActionButton(
             key="open_users_tab",

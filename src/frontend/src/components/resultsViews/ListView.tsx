@@ -205,8 +205,10 @@ export const ListView = ({
                   {((book.kavita_series_owned ?? 0) > 0 ||
                     book.kavita_available ||
                     (book.abs_series_owned ?? 0) > 0 ||
-                    book.abs_available) && (
-                    <div className="mt-1 scale-90 origin-left">
+                    book.abs_available ||
+                    (book.calibre_series_owned ?? 0) > 0 ||
+                    book.calibre_available) && (
+                    <div className="mt-1 origin-left scale-90">
                       <LibraryBadge book={book} variant="inline" />
                     </div>
                   )}

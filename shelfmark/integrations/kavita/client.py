@@ -108,6 +108,52 @@ def kavita_authenticate_plugin(cfg: KavitaConfig) -> str:
     return str(token)
 
 
+def kavita_login_user(
+    base_url: str,
+    username: str,
+    password: str,
+    *,
+    verify_tls: bool = True,
+) -> dict[str, Any]:
+    """Validate a user's Kavita username/password (used for Kavita login).
+
+    Returns ``{"username", "email", "is_admin"}`` on success. Raises KavitaError
+    on bad credentials or transport failure. This uses the regular account login
+    endpoint, so it needs no admin API key.
+    """
+    base_url = (base_url or "").strip().rstrip("/")
+    if not base_url:
+        msg = f"{KAVITA_DISPLAY_NAME} URL is required"
+        raise KavitaError(msg)
+
+    url = f"{base_url}/api/Account/login"
+    payload = {"username": username, "password": password}
+    response = _request("POST", url, verify_tls=verify_tls, action="login", json_body=payload)
+    if response.status_code in {401, 403}:
+        msg = "Invalid Kavita username or password"
+        raise KavitaError(msg)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        msg = f"{KAVITA_DISPLAY_NAME} login failed ({response.status_code})"
+        raise KavitaError(msg) from exc
+
+    data = _json(response, "login")
+    if not isinstance(data, dict) or not data.get("token"):
+        msg = f"{KAVITA_DISPLAY_NAME} did not return a token"
+        raise KavitaError(msg)
+
+    roles = data.get("roles") or []
+    is_admin = isinstance(roles, list) and any(
+        str(role).strip().lower() == "admin" for role in roles
+    )
+    return {
+        "username": str(data.get("username") or username).strip(),
+        "email": (str(data.get("email")).strip() or None) if data.get("email") else None,
+        "is_admin": is_admin,
+    }
+
+
 def kavita_list_libraries(cfg: KavitaConfig, token: str) -> list[dict[str, Any]]:
     """Return the available Kavita libraries as ``[{id, name, type}, ...]``."""
     url = f"{cfg.base_url}/api/Library/libraries"

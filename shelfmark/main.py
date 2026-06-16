@@ -50,6 +50,10 @@ from shelfmark.core.auth_modes import (
     load_active_auth_mode,
     requires_admin_for_settings_access,
 )
+from shelfmark.core.calibre_inventory_service import (
+    get_calibre_inventory_service,
+    init_calibre_inventory_service,
+)
 from shelfmark.core.config import config as app_config
 from shelfmark.core.cwa_user_sync import upsert_cwa_user
 from shelfmark.core.download_history_service import DownloadHistoryService
@@ -90,6 +94,7 @@ from shelfmark.core.requests_service import (
 from shelfmark.core.user_db import UserDB
 from shelfmark.core.utils import normalize_base_path
 from shelfmark.download import orchestrator as backend
+from shelfmark.integrations.kavita.client import KavitaError, kavita_login_user
 from shelfmark.release_sources import (
     BrowseRecord,
     Release,
@@ -189,6 +194,7 @@ try:
     activity_view_state_service = ActivityViewStateService(_user_db_path)
     init_inventory_service(_user_db_path)
     init_abs_inventory_service(_user_db_path)
+    init_calibre_inventory_service(_user_db_path)
     import_module("shelfmark.config.users_settings")
     from shelfmark.core.admin_routes import register_admin_routes
     from shelfmark.core.oidc_routes import register_oidc_routes
@@ -225,6 +231,15 @@ try:
     _start_abs_scheduler()
 except Exception as _abs_sched_exc:  # noqa: BLE001 - scheduler must never block startup
     logger.warning("Failed to start Audiobookshelf scheduler: %s", _abs_sched_exc)
+
+try:
+    from shelfmark.integrations.calibre.scheduler import (
+        start_scheduler as _start_calibre_scheduler,
+    )
+
+    _start_calibre_scheduler()
+except Exception as _calibre_sched_exc:  # noqa: BLE001 - scheduler must never block startup
+    logger.warning("Failed to start Calibre scheduler: %s", _calibre_sched_exc)
 
 # Rate limiting for login attempts
 # Map usernames to their failed-attempt counters and lockout timestamps.
@@ -390,7 +405,7 @@ def _resolve_release_content_type(data: dict[str, Any], source: Any) -> tuple[st
         for raw_category in categories:
             try:
                 category_id = int(raw_category)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
             if min_cat <= category_id <= max_cat:
                 return "audiobook", True
@@ -434,7 +449,7 @@ def _resolve_policy_mode_for_current_user(*, source: Any, content_type: Any) -> 
     if db_user_id is not None:
         try:
             user_settings = user_db.get_user_settings(int(db_user_id))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             user_settings = None
 
     effective = merge_request_policy_settings(global_settings, user_settings)
@@ -506,7 +521,7 @@ def _resolve_download_user_context(
 
     try:
         target_user_id = int(on_behalf_of_user_id)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return db_user_id, username, (jsonify({"error": "Invalid on_behalf_of_user_id"}), 400)
 
     if target_user_id <= 0:
@@ -781,7 +796,7 @@ def proxy_auth_middleware() -> Response | tuple[Response, int] | None:
             if raw_db_user_id is not None:
                 try:
                     session_db_user = user_db.get_user(user_id=int(raw_db_user_id))
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     session_db_user = None
 
             session_db_username = (
@@ -857,7 +872,7 @@ def login_required(
                 ):
                     return jsonify({"error": "Admin access required"}), 403
 
-            except (RuntimeError, TypeError, ValueError):
+            except RuntimeError, TypeError, ValueError:
                 logger.exception("Admin access check error")
                 return jsonify({"error": "Internal Server Error"}), 500
 
@@ -1297,7 +1312,7 @@ def _notify_admin_for_terminal_download_status(
     raw_owner_user_id = getattr(task, "user_id", None)
     try:
         owner_user_id = int(raw_owner_user_id) if raw_owner_user_id is not None else None
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         owner_user_id = None
 
     content_type = normalize_optional_text(getattr(task, "content_type", None))
@@ -1435,6 +1450,15 @@ def _record_download_terminal_snapshot(task_id: str, status: QueueStatus, task: 
         except Exception as exc:  # noqa: BLE001 - never break the download pipeline
             logger.debug("Could not schedule post-download Audiobookshelf sync: %s", exc)
 
+        try:
+            from shelfmark.integrations.calibre.scheduler import (
+                request_sync_after_download as _calibre_request_sync_after_download,
+            )
+
+            _calibre_request_sync_after_download()
+        except Exception as exc:  # noqa: BLE001 - never break the download pipeline
+            logger.debug("Could not schedule post-download Calibre sync: %s", exc)
+
     final_status = _queue_status_to_final_activity_status(status)
     if final_status is None:
         return
@@ -1506,7 +1530,7 @@ def _task_owned_by_actor(
     raw_task_user_id = getattr(task, "user_id", None)
     try:
         task_user_id = int(raw_task_user_id) if raw_task_user_id is not None else None
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         task_user_id = None
 
     if actor_user_id is not None and task_user_id is not None:
@@ -1603,9 +1627,7 @@ def _emit_request_update_events(updated_requests: list[dict[str, Any]]) -> None:
         )
 
 
-def _enrich_queue_status_with_display_names(
-    status: dict[str, dict[str, Any]], db: Any
-) -> None:
+def _enrich_queue_status_with_display_names(status: dict[str, dict[str, Any]], db: Any) -> None:
     """Add display_name to each book dict in the queue status using a per-user cache."""
     cache: dict[int, str | None] = {}
     for bucket in status.values():
@@ -1683,16 +1705,31 @@ def api_local_download() -> Response | tuple[Response, int]:
                                 history_row.get("download_path")
                             )
                             if download_path:
-                                _safe_exts = frozenset({
-                                    # Default supported ebook formats
-                                    ".epub", ".pdf", ".mobi", ".azw3", ".azw", ".fb2", ".djvu",
-                                    ".cbr", ".cbz",
-                                    # Audiobook / media formats
-                                    ".mp3", ".m4b", ".m4a", ".ogg", ".flac", ".aac",
-                                    ".wav", ".opus",
-                                    # Archive (books are sometimes delivered zipped)
-                                    ".zip",
-                                })
+                                _safe_exts = frozenset(
+                                    {
+                                        # Default supported ebook formats
+                                        ".epub",
+                                        ".pdf",
+                                        ".mobi",
+                                        ".azw3",
+                                        ".azw",
+                                        ".fb2",
+                                        ".djvu",
+                                        ".cbr",
+                                        ".cbz",
+                                        # Audiobook / media formats
+                                        ".mp3",
+                                        ".m4b",
+                                        ".m4a",
+                                        ".ogg",
+                                        ".flac",
+                                        ".aac",
+                                        ".wav",
+                                        ".opus",
+                                        # Archive (books are sometimes delivered zipped)
+                                        ".zip",
+                                    }
+                                )
                                 resolved_dl = Path(download_path).resolve()
                                 if resolved_dl.suffix.lower() not in _safe_exts:
                                     logger.warning(
@@ -2293,6 +2330,80 @@ def api_login() -> Response | tuple[Response, int]:
                 logger.error_trace(f"CWA database error during login: {e}")
                 return jsonify({"error": "Authentication system error"}), 500
 
+        # Kavita authentication mode
+        if auth_mode == "kavita":
+            if user_db is None:
+                logger.error("User database not available for Kavita auth")
+                return jsonify({"error": "Authentication service unavailable"}), 503
+
+            try:
+                # Local fallback first: a local admin can always sign in with their
+                # Shelfmark password, so a Kavita outage never locks everyone out.
+                db_user = user_db.get_user(username=username)
+                if (
+                    db_user
+                    and db_user.get("password_hash")
+                    and check_password_hash(db_user["password_hash"], password)
+                ):
+                    is_admin = db_user["role"] == "admin"
+                    session["user_id"] = username
+                    session["db_user_id"] = db_user["id"]
+                    session["is_admin"] = is_admin
+                    session.permanent = remember_me
+                    clear_failed_logins(username)
+                    logger.info(
+                        "Login successful for user '%s' from IP %s (kavita mode, local fallback, is_admin=%s)",
+                        username,
+                        ip_address,
+                        is_admin,
+                    )
+                    return jsonify({"success": True})
+
+                # Otherwise validate the credentials against the Kavita server.
+                try:
+                    kavita_user = kavita_login_user(
+                        str(app_config.get("KAVITA_URL", "")), username, password
+                    )
+                except KavitaError as exc:
+                    logger.warning(
+                        "Kavita login failed for '%s' from IP %s: %s", username, ip_address, exc
+                    )
+                    return _failed_login_response(username, ip_address)
+
+                # Provision (or update) a Kavita-backed user. "suffix" avoids taking
+                # over an existing local account that happens to share the name.
+                provisioned, _ = upsert_external_user(
+                    user_db,
+                    auth_source="kavita",
+                    username=kavita_user["username"] or username,
+                    role="user",
+                    email=kavita_user.get("email"),
+                    collision_strategy="suffix",
+                    sync_role=False,
+                    context="kavita_login",
+                )
+                if provisioned is None:
+                    logger.error("Kavita login could not provision user '%s'", username)
+                    return jsonify({"error": "Authentication system error"}), 500
+
+                session["user_id"] = provisioned["username"]
+                session["db_user_id"] = provisioned["id"]
+                session["is_admin"] = provisioned["role"] == "admin"
+                session.permanent = remember_me
+                clear_failed_logins(username)
+                logger.info(
+                    "Login successful for user '%s' from IP %s (kavita auth, is_admin=%s, remember_me=%s)",
+                    username,
+                    ip_address,
+                    session["is_admin"],
+                    remember_me,
+                )
+                return jsonify({"success": True})
+
+            except _OPERATIONAL_ERRORS as e:
+                logger.error_trace(f"Kavita error during login: {e}")
+                return jsonify({"error": "Authentication system error"}), 500
+
         # Should not reach here, but handle gracefully
         return jsonify({"error": "Unknown authentication mode"}), 500
 
@@ -2732,6 +2843,12 @@ def api_metadata_search() -> Response | tuple[Response, int]:
             get_abs_inventory_service(),
             available_key="abs_available",
             series_owned_key="abs_series_owned",
+        )
+        _annotate_library_availability(
+            books_data,
+            get_calibre_inventory_service(),
+            available_key="calibre_available",
+            series_owned_key="calibre_series_owned",
         )
 
         response_data = {
@@ -3261,6 +3378,7 @@ def api_settings_get_all() -> Response | tuple[Response, int]:
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
         import_module("shelfmark.config.audiobookshelf_settings")
+        import_module("shelfmark.config.calibre_settings")
         import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import serialize_all_settings
 
@@ -3292,6 +3410,7 @@ def api_settings_get_tab(tab_name: str) -> Response | tuple[Response, int]:
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
         import_module("shelfmark.config.audiobookshelf_settings")
+        import_module("shelfmark.config.calibre_settings")
         import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import get_settings_tab, serialize_tab
         from shelfmark.release_sources import _apply_deferred_field_updates
@@ -3332,6 +3451,7 @@ def api_settings_update_tab(tab_name: str) -> Response | tuple[Response, int]:
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
         import_module("shelfmark.config.audiobookshelf_settings")
+        import_module("shelfmark.config.calibre_settings")
         import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import (
             get_settings_tab,
@@ -3385,6 +3505,7 @@ def api_settings_execute_action(tab_name: str, action_key: str) -> Response | tu
         import_module("shelfmark.config.users_settings")
         import_module("shelfmark.config.kavita_settings")
         import_module("shelfmark.config.audiobookshelf_settings")
+        import_module("shelfmark.config.calibre_settings")
         import_module("shelfmark.config.library_settings")
         from shelfmark.core.settings_registry import execute_action
 

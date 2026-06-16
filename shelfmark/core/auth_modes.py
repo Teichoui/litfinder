@@ -14,11 +14,13 @@ AUTH_SOURCE_BUILTIN = "builtin"
 AUTH_SOURCE_OIDC = "oidc"
 AUTH_SOURCE_PROXY = "proxy"
 AUTH_SOURCE_CWA = "cwa"
+AUTH_SOURCE_KAVITA = "kavita"
 AUTH_SOURCES = (
     AUTH_SOURCE_BUILTIN,
     AUTH_SOURCE_OIDC,
     AUTH_SOURCE_PROXY,
     AUTH_SOURCE_CWA,
+    AUTH_SOURCE_KAVITA,
 )
 AUTH_SOURCE_SET = frozenset(AUTH_SOURCES)
 _ALWAYS_ADMIN_SETTINGS_TABS = frozenset({"security", "users"})
@@ -49,7 +51,7 @@ def has_local_password_admin(user_db: object | None = None) -> bool:
         if not _has_admin_password_api(db):
             return False
         return db.has_admin_with_password()
-    except (AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError, sqlite3.Error):
+    except AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError, sqlite3.Error:
         return False
 
 
@@ -94,6 +96,15 @@ def determine_auth_mode(
     ):
         return AUTH_SOURCE_OIDC
 
+    # Kavita login requires a local admin fallback (like OIDC) so a Kavita
+    # outage or misconfiguration can never lock the administrator out.
+    if (
+        auth_mode == AUTH_SOURCE_KAVITA
+        and local_admin_available
+        and security_config.get("KAVITA_URL")
+    ):
+        return AUTH_SOURCE_KAVITA
+
     return "none"
 
 
@@ -112,6 +123,7 @@ def load_active_auth_mode(
             "PROXY_AUTH_USER_HEADER": app_config.get("PROXY_AUTH_USER_HEADER", ""),
             "OIDC_DISCOVERY_URL": app_config.get("OIDC_DISCOVERY_URL", ""),
             "OIDC_CLIENT_ID": app_config.get("OIDC_CLIENT_ID", ""),
+            "KAVITA_URL": app_config.get("KAVITA_URL", ""),
         }
         return determine_auth_mode(
             security_config,
@@ -119,7 +131,7 @@ def load_active_auth_mode(
             has_local_admin=has_local_password_admin(user_db),
             disable_local_auth=DISABLE_LOCAL_AUTH,
         )
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError, sqlite3.Error):
+    except ImportError, OSError, RuntimeError, TypeError, ValueError, sqlite3.Error:
         return "none"
 
 
@@ -127,7 +139,10 @@ def is_user_active_for_auth_mode(user: Mapping[str, Any], auth_mode: str) -> boo
     """Return whether a user can authenticate under the current auth mode."""
     source = normalize_auth_source(user.get("auth_source"), user.get("oidc_subject"))
     if source == AUTH_SOURCE_BUILTIN:
-        return auth_mode in (AUTH_SOURCE_BUILTIN, AUTH_SOURCE_OIDC)
+        # Local users stay active wherever local password login is accepted: the
+        # built-in mode, plus OIDC and Kavita modes, which both keep a local
+        # password fallback for the administrator.
+        return auth_mode in (AUTH_SOURCE_BUILTIN, AUTH_SOURCE_OIDC, AUTH_SOURCE_KAVITA)
     return source == auth_mode
 
 

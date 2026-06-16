@@ -233,6 +233,10 @@ class BookMetadata:
     abs_available: bool = False
     abs_series_owned: int | None = None
 
+    # Calibre-Web / CWA library availability (annotated after metadata search)
+    calibre_available: bool = False
+    calibre_series_owned: int | None = None
+
 
 def group_languages_by_localized_title(
     base_title: str,
@@ -419,7 +423,7 @@ class MetadataProvider(ABC):
         """Safely fetch targets for one book, falling back to an empty list."""
         try:
             return self.get_book_targets(book_id)
-        except (NotImplementedError, ValueError):
+        except NotImplementedError, ValueError:
             return []
 
     def set_book_target_state(

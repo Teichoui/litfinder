@@ -39,6 +39,8 @@ export interface MetadataBookData {
   kavita_series_owned?: number;
   abs_available?: boolean;
   abs_series_owned?: number;
+  calibre_available?: boolean;
+  calibre_series_owned?: number;
 }
 
 export interface SourceRecordData {
@@ -109,6 +111,8 @@ export function transformMetadataToBook(data: MetadataBookData): Book {
     kavita_series_owned: data.kavita_series_owned,
     abs_available: data.abs_available,
     abs_series_owned: data.abs_series_owned,
+    calibre_available: data.calibre_available,
+    calibre_series_owned: data.calibre_series_owned,
     info: {
       ...(data.isbn_13 && { ISBN: data.isbn_13 }),
       ...(data.isbn_10 && !data.isbn_13 && { ISBN: data.isbn_10 }),
