@@ -55,6 +55,13 @@ addopts = [
     "--tb=short",
     "-n",
     "auto",
+    # Exclude integration/e2e by default: they need a live, fully-configured
+    # stack (e.g. e2e download tests post a "test_source" that only exists on a
+    # purpose-built server). A bare ``pytest`` now runs the unit suite cleanly,
+    # matching ``make python-test``. Run the excluded tiers explicitly with
+    # ``pytest -m e2e`` / ``-m integration`` (a CLI ``-m`` overrides this).
+    "-m",
+    "not integration and not e2e",
 ]
 markers = [
     "integration: marks tests that require running services (deselect with '-m \"not integration\"')",
