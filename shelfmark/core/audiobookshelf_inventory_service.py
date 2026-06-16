@@ -292,8 +292,12 @@ class AbsInventoryService:
                     if cur.fetchone():
                         return True
 
-                # Title-only fallback for items with no author stored (mirrors
-                # the Kavita inventory service to prevent silent divergence).
+                # Title-only fallback, but only when the *query* has no author:
+                # audiobooks almost always carry an author on both sides, so a
+                # title-only match while an author was supplied would risk false
+                # positives (two different books sharing a title). Deliberately
+                # stricter than the Kavita service, which omits the ``not norm_a``
+                # guard because manga volumes carry no writer in Kavita.
                 if norm_t and not norm_a:
                     cur = conn.execute(
                         """

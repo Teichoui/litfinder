@@ -9,8 +9,8 @@
 
 > [!NOTE]
 > **This fork adds:**
-> - **Kavita & Audiobookshelf integration** — live inventory sync so search results show "already owned" badges for books and series you already have in your library
-> - **In-app file manager** — browse, rename, move, and create folders within any configured library folder directly from the UI (Files button in header)
+> - **Kavita & Audiobookshelf integration** — live inventory sync so search results show "already owned" badges for books and series you already have in your library, plus optional notifications when new items appear in a connected library
+> - **In-app file manager** — browse, rename, move, and create folders within any configured library folder directly from the UI (Library Manager button in header)
 > - **Library Folders registry** — a universal folder list under Settings → Library Folders, shared by the file manager; works with any library server
 > - **Custom source plugin system** — install third-party source plugins into your config directory without modifying the container; plugins are auto-installed on startup ([LitFinder-Custom-Sources](https://github.com/NemesisHubris/LitFinder-Custom-Sources))
 > - **"Leave in Place" output handler** — a noop delivery mode that skips moving the file after download, leaving it wherever the download client put it

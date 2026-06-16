@@ -2549,13 +2549,20 @@ def api_metadata_config() -> Response | tuple[Response, int]:
         return jsonify({"error": str(e)}), 500
 
 
-def _annotate_kavita_availability(books_data: list[dict[str, Any]]) -> None:
-    """Flag search results already present in Kavita (book- and series-level).
+def _annotate_library_availability(
+    books_data: list[dict[str, Any]],
+    inventory: Any,
+    *,
+    available_key: str,
+    series_owned_key: str,
+) -> None:
+    """Flag search results already present in a library inventory.
 
+    Shared by the Kavita (ebook) and Audiobookshelf (audiobook) integrations;
+    the two only differ in which inventory service and result keys they use.
     Best-effort: a missing/unsynced inventory or any DB error leaves the
-    default ``kavita_available=False`` / ``kavita_series_owned=None`` untouched.
+    per-book defaults (``available=False`` / ``series_owned=None``) untouched.
     """
-    inventory = get_inventory_service()
     if inventory is None or not books_data:
         return
     try:
@@ -2569,7 +2576,7 @@ def _annotate_kavita_availability(books_data: list[dict[str, Any]]) -> None:
         try:
             authors = book.get("authors") or []
             author = authors[0] if authors else book.get("search_author")
-            book["kavita_available"] = inventory.lookup_book(
+            book[available_key] = inventory.lookup_book(
                 isbn_13=book.get("isbn_13"),
                 isbn_10=book.get("isbn_10"),
                 title=book.get("search_title") or book.get("title"),
@@ -2582,47 +2589,7 @@ def _annotate_kavita_availability(books_data: list[dict[str, Any]]) -> None:
             if series_name:
                 if series_name not in series_cache:
                     series_cache[series_name] = inventory.series_coverage(series_name)
-                owned = series_cache[series_name]
-                book["kavita_series_owned"] = owned or None
-        except Exception:  # noqa: BLE001 - skip annotation for this book on error
-            continue
-
-
-def _annotate_abs_availability(books_data: list[dict[str, Any]]) -> None:
-    """Flag search results already present in Audiobookshelf (book- and series-level).
-
-    Best-effort: a missing/unsynced inventory or any DB error leaves the
-    default ``abs_available=False`` / ``abs_series_owned=None`` untouched.
-    """
-    inventory = get_abs_inventory_service()
-    if inventory is None or not books_data:
-        return
-    try:
-        if inventory.count() == 0:
-            return
-    except Exception:  # noqa: BLE001 - availability must never break search
-        return
-
-    series_cache: dict[str, int] = {}
-    for book in books_data:
-        try:
-            authors = book.get("authors") or []
-            author = authors[0] if authors else book.get("search_author")
-            book["abs_available"] = inventory.lookup_book(
-                isbn_13=book.get("isbn_13"),
-                isbn_10=book.get("isbn_10"),
-                title=book.get("search_title") or book.get("title"),
-                author=author,
-                series_name=book.get("series_name"),
-                series_index=book.get("series_position"),
-                raw_title=book.get("title"),
-            )
-            series_name = book.get("series_name")
-            if series_name:
-                if series_name not in series_cache:
-                    series_cache[series_name] = inventory.series_coverage(series_name)
-                owned = series_cache[series_name]
-                book["abs_series_owned"] = owned or None
+                book[series_owned_key] = series_cache[series_name] or None
         except Exception:  # noqa: BLE001 - skip annotation for this book on error
             continue
 
@@ -2754,8 +2721,18 @@ def api_metadata_search() -> Response | tuple[Response, int]:
                 cache_id = f"{book_dict['provider']}_{book_dict['provider_id']}"
                 book_dict["cover_url"] = transform_cover_url(book_dict["cover_url"], cache_id)
 
-        _annotate_kavita_availability(books_data)
-        _annotate_abs_availability(books_data)
+        _annotate_library_availability(
+            books_data,
+            get_inventory_service(),
+            available_key="kavita_available",
+            series_owned_key="kavita_series_owned",
+        )
+        _annotate_library_availability(
+            books_data,
+            get_abs_inventory_service(),
+            available_key="abs_available",
+            series_owned_key="abs_series_owned",
+        )
 
         response_data = {
             "books": books_data,

@@ -76,39 +76,6 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
         return jsonify(get_library_folders())
 
-    @app.route("/api/library/move-file", methods=["POST"])
-    def api_library_move_file() -> Response | tuple[Response, int]:
-        if (gate := _require_auth("move")) is not None:
-            return gate
-
-        data = request.get_json(silent=True) or {}
-        source_path = str(data.get("source_path") or "").strip()
-        destination_path = str(data.get("destination_path") or "").strip()
-
-        if not source_path or not destination_path:
-            return jsonify({"error": "source_path and destination_path required"}), 400
-
-        source = Path(source_path)
-        if not source.exists():
-            return jsonify({"error": "Source file does not exist"}), 404
-
-        allowed = _allowed_folder_roots()
-        if not _is_within_allowed(source, allowed):
-            return jsonify({"error": "Source path is not within a configured library folder"}), 403
-        dest_path = Path(destination_path)
-        if not _is_within_allowed(dest_path.parent if dest_path.suffix else dest_path, allowed):
-            return jsonify({"error": "Destination is not within a configured library folder"}), 403
-
-        try:
-            dest = _resolve_conflict(dest_path)
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(source), str(dest))
-        except (OSError, shutil.Error) as exc:
-            return jsonify({"error": f"Failed to move file: {exc}"}), 500
-
-        logger.info("Moved file: %s -> %s", source_path, dest)
-        return jsonify({"success": True, "new_path": str(dest)})
-
     @app.route("/api/library/organize", methods=["POST"])
     def api_library_organize() -> Response | tuple[Response, int]:
         if (gate := _require_auth("organize")) is not None:
@@ -153,6 +120,23 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
                 continue
 
             try:
+                resolved_source = source.resolve()
+                resolved_dest_dir = dest_dir.resolve()
+                # Already in the target folder: moving here is a no-op. Without
+                # this, _resolve_conflict would append " (1)" and silently
+                # rename the file instead of leaving it alone.
+                if resolved_source.parent == resolved_dest_dir:
+                    moved.append({"original_path": source_path, "new_path": source_path})
+                    continue
+                # Refuse to move a folder into itself or one of its descendants.
+                if source.is_dir() and (
+                    resolved_dest_dir == resolved_source
+                    or resolved_dest_dir.is_relative_to(resolved_source)
+                ):
+                    failed.append(
+                        {"path": source_path, "error": "Cannot move a folder into itself"}
+                    )
+                    continue
                 dest = _resolve_conflict(dest_dir / source.name)
                 shutil.move(str(source), str(dest))
                 moved.append({"original_path": source_path, "new_path": str(dest)})
