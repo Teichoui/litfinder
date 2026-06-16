@@ -22,6 +22,7 @@ from shelfmark.core.request_helpers import (
     normalize_optional_text,
     normalize_positive_int,
 )
+from shelfmark.core.abs_integration import refresh_library_for_path
 from shelfmark.core.utils import is_audiobook as check_audiobook
 from shelfmark.core.utils import transform_cover_url
 from shelfmark.download.fs import run_blocking_io
@@ -715,6 +716,12 @@ def _download_task(task_id: str, cancel_flag: Event) -> str | None:
     elif result:
         logger.info("Task %s: post-processing complete", task_id)
         logger.debug("Task %s: post-processing result: %s", task_id, result)
+        threading.Thread(
+            target=refresh_library_for_path,
+            args=(result,),
+            daemon=True,
+            name=f"abs-scan-{task_id}",
+        ).start()
     else:
         logger.warning("Task %s: post-processing failed", task_id)
         if not task.last_error_message:

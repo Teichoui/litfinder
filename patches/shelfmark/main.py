@@ -516,6 +516,7 @@ def _queue_status_for_routes(user_id: int | None = None) -> dict[str, dict[str, 
 if user_db is not None:
     try:
         from shelfmark.core.activity_routes import register_activity_routes
+        from shelfmark.core.library_routes import register_library_routes
         from shelfmark.core.request_routes import register_request_routes
 
         register_request_routes(
@@ -525,6 +526,7 @@ if user_db is not None:
             queue_release=_queue_release_for_routes,
             ws_manager=ws_manager,
         )
+        register_library_routes(app, resolve_auth_mode=_resolve_auth_mode_for_routes)
         if download_history_service is not None and activity_view_state_service is not None:
             register_activity_routes(
                 app,

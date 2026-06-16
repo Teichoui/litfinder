@@ -1,6 +1,5 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { useMountEffect } from '../../hooks/useMountEffect';
 import type { LibraryFolder, DirEntry } from '../../services/api';
 import {
   fetchLibraryFolders,
@@ -130,7 +129,7 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-(--border-muted) bg-(--bg-soft)">
         {path && (
-          <button type="button"
+          <button
             onClick={() => parent ? void navigateTo(parent) : setPath('')}
             className="hover-action h-7 w-7 flex items-center justify-center rounded-full flex-shrink-0"
             title="Up"
@@ -144,7 +143,7 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
           ) : crumbs.map((crumb, i) => (
             <span key={crumb.path} className="flex items-center gap-0.5 min-w-0 flex-shrink-0 last:min-w-0 last:flex-shrink">
               {i > 0 && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 opacity-40" />}
-              <button type="button"
+              <button
                 onClick={() => void navigateTo(crumb.path)}
                 className={`truncate hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors ${
                   i === crumbs.length - 1 ? 'text-zinc-900 dark:text-zinc-100 font-medium' : ''
@@ -157,7 +156,7 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {path && (
-            <button type="button"
+            <button
               onClick={() => onConfirm(path)}
               disabled={loading}
               className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
@@ -165,7 +164,7 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
               Move {count} here
             </button>
           )}
-          <button type="button"
+          <button
             onClick={onCancel}
             className="hover-action h-7 px-2 flex items-center rounded-lg text-xs"
           >
@@ -178,58 +177,49 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
         {error && (
           <div className="px-4 py-2 text-xs text-red-700 dark:text-red-400">{error}</div>
         )}
-        {(() => {
-          if (!path) {
-            return (
-              <ul className="divide-y divide-[color-mix(in_srgb,var(--border-muted)_60%,transparent)]">
-                {libraryFolders.map((f) => (
-                  <li key={f.path}>
-                    <button type="button"
-                      onClick={() => void navigateTo(f.path)}
-                      className="hover-row w-full text-left flex items-center gap-2 px-4 py-2.5"
-                    >
-                      <FolderIcon className="h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-400" />
-                      <span className="font-medium">{f.name}</span>
-                      <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-40" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            );
-          }
-          if (loading) {
-            return <div className="flex items-center justify-center h-32 text-xs opacity-40">Loading…</div>;
-          }
-          if (entries.length === 0) {
-            return (
-              <div className="flex flex-col items-center justify-center h-32 gap-2">
-                <p className="text-xs opacity-50">No subfolders — move here?</p>
-                <button type="button"
-                  onClick={() => onConfirm(path)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors"
+        {!path ? (
+          <ul className="divide-y divide-[color-mix(in_srgb,var(--border-muted)_60%,transparent)]">
+            {libraryFolders.map((f) => (
+              <li key={f.path}>
+                <button
+                  onClick={() => void navigateTo(f.path)}
+                  className="hover-row w-full text-left flex items-center gap-2 px-4 py-2.5"
                 >
-                  Move {count} here
+                  <FolderIcon className="h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-400" />
+                  <span className="font-medium">{f.name}</span>
+                  <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-40" />
                 </button>
-              </div>
-            );
-          }
-          return (
-            <ul className="divide-y divide-[color-mix(in_srgb,var(--border-muted)_60%,transparent)]">
-              {entries.map((e) => (
-                <li key={e.path}>
-                  <button type="button"
-                    onClick={() => void navigateTo(e.path)}
-                    className="hover-row w-full text-left flex items-center gap-2 px-4 py-2.5"
-                  >
-                    <FolderIcon className="h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-400" />
-                    <span>{e.name}</span>
-                    <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-40" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          );
-        })()}
+              </li>
+            ))}
+          </ul>
+        ) : loading ? (
+          <div className="flex items-center justify-center h-32 text-xs opacity-40">Loading…</div>
+        ) : entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 gap-2">
+            <p className="text-xs opacity-50">No subfolders — move here?</p>
+            <button
+              onClick={() => onConfirm(path)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors"
+            >
+              Move {count} here
+            </button>
+          </div>
+        ) : (
+          <ul className="divide-y divide-[color-mix(in_srgb,var(--border-muted)_60%,transparent)]">
+            {entries.map((e) => (
+              <li key={e.path}>
+                <button
+                  onClick={() => void navigateTo(e.path)}
+                  className="hover-row w-full text-left flex items-center gap-2 px-4 py-2.5"
+                >
+                  <FolderIcon className="h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-400" />
+                  <span>{e.name}</span>
+                  <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-40" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -267,7 +257,7 @@ export const FileExplorer = () => {
     }
   }, []);
 
-  useMountEffect(() => { void loadRoots(); });
+  useEffect(() => { void loadRoots(); }, [loadRoots]);
 
   const navigate = useCallback(async (path: string) => {
     if (!path) return;
@@ -323,11 +313,7 @@ export const FileExplorer = () => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (multi) {
-        if (next.has(path)) {
-          next.delete(path);
-        } else {
-          next.add(path);
-        }
+        next.has(path) ? next.delete(path) : next.add(path);
       } else {
         if (next.size === 1 && next.has(path)) {
           next.clear();
@@ -438,7 +424,7 @@ export const FileExplorer = () => {
             {libraryFolders.map((folder) => {
               const isActive = currentPath === folder.path || currentPath.startsWith(folder.path + '/');
               return (
-                <button type="button"
+                <button
                   key={folder.path}
                   onClick={() => void navigate(folder.path)}
                   className={`hover-surface w-full text-left flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
@@ -473,7 +459,7 @@ export const FileExplorer = () => {
             {libraryFolders.map((folder) => {
               const isActive = currentPath === folder.path || currentPath.startsWith(folder.path + '/');
               return (
-                <button type="button"
+                <button
                   key={folder.path}
                   onClick={() => void navigate(folder.path)}
                   className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
@@ -495,7 +481,7 @@ export const FileExplorer = () => {
 
           {/* back button */}
           {parentPath && !movePickerOpen && (
-            <button type="button"
+            <button
               onClick={() => void navigate(parentPath)}
               className="hover-action h-8 w-8 flex items-center justify-center rounded-full flex-shrink-0"
               aria-label="Up"
@@ -512,12 +498,12 @@ export const FileExplorer = () => {
               ) : breadcrumbs.map((crumb, i) => (
                 <span key={crumb.path} className="flex items-center gap-0.5 min-w-0 flex-shrink-0 last:min-w-0 last:flex-shrink">
                   {i > 0 && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 opacity-40" />}
-                  <button type="button"
+                  <button
                     onClick={() => void navigate(crumb.path)}
                     className={`truncate hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors ${
                       i === breadcrumbs.length - 1
                         ? 'text-zinc-900 dark:text-zinc-100 font-medium'
-                        : (isMobile ? 'hidden' : '')
+                        : isMobile ? 'hidden' : ''
                     }`}
                   >
                     {crumb.name}
@@ -536,7 +522,7 @@ export const FileExplorer = () => {
           {/* actions */}
           <div className="flex items-center gap-1 flex-shrink-0">
             {selected.size > 0 && !movePickerOpen && (
-              <button type="button"
+              <button
                 onClick={() => setMovePickerOpen(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-(--border-muted) hover:bg-(--bg-soft) transition-colors"
               >
@@ -545,7 +531,7 @@ export const FileExplorer = () => {
             )}
 
             {currentPath && !movePickerOpen && (
-              <button type="button"
+              <button
                 onClick={activateNewFolder}
                 className="hover-action h-8 w-8 flex items-center justify-center rounded-full"
                 title="New folder"
@@ -554,7 +540,7 @@ export const FileExplorer = () => {
               </button>
             )}
 
-            <button type="button"
+            <button
               onClick={() => { void loadRoots(); refresh(); }}
               disabled={loading}
               className="hover-action h-8 w-8 flex items-center justify-center rounded-full disabled:opacity-40"
@@ -569,7 +555,7 @@ export const FileExplorer = () => {
         {error && (
           <div className="px-4 py-2 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 flex items-center justify-between gap-2">
             <span>{error}</span>
-            <button type="button" onClick={() => setError('')} className="flex-shrink-0 opacity-70 hover:opacity-100">
+            <button onClick={() => setError('')} className="flex-shrink-0 opacity-70 hover:opacity-100">
               <Icon className="h-3.5 w-3.5" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
             </button>
           </div>
@@ -591,7 +577,7 @@ export const FileExplorer = () => {
               <div className="flex items-center justify-center h-full text-sm opacity-50">
                 {isMobile ? 'Pick a folder above' : 'Select a folder from the sidebar'}
               </div>
-            ) : (entries.length === 0 && !loading && !newFolderActive ? (
+            ) : entries.length === 0 && !loading && !newFolderActive ? (
               <div className="flex items-center justify-center h-full text-sm opacity-50">
                 Empty folder
               </div>
@@ -708,7 +694,7 @@ export const FileExplorer = () => {
                   })}
                 </tbody>
               </table>
-            ))}
+            )}
           </div>
         )}
 
@@ -717,7 +703,7 @@ export const FileExplorer = () => {
           <div className="flex items-center justify-between px-4 py-1.5 border-t border-(--border-muted) text-xs">
             <span className="opacity-60">{entries.length} item{entries.length !== 1 ? 's' : ''}</span>
             {singleSelected && !renamingPath && (
-              <button type="button"
+              <button
                 onClick={() => startRename(singleSelected)}
                 className="hover-action px-2 py-0.5 rounded text-xs opacity-60 hover:opacity-100 transition-opacity"
               >

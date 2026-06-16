@@ -3,6 +3,8 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { RequestRecord } from '../../types';
 import { withBasePath } from '../../utils/basePath';
+import type { LibraryFolder } from '../../services/api';
+import { moveToLibrary } from '../../services/api';
 import { Tooltip } from '../shared/Tooltip';
 import type { ActivityCardAction } from './activityCardModel';
 import { buildActivityCardModel } from './activityCardModel';
@@ -39,6 +41,7 @@ interface ActivityCardProps {
   isRequestRejectOpen?: boolean;
   onRequestRejectClose?: () => void;
   isSelected?: boolean;
+  libraryFolders?: LibraryFolder[];
 }
 
 const BookFallback = () => (
@@ -516,8 +519,12 @@ export const ActivityCard = ({
   isRequestRejectOpen = false,
   onRequestRejectClose,
   isSelected = false,
+  libraryFolders,
 }: ActivityCardProps) => {
   const model = useMemo(() => buildActivityCardModel(item, isAdmin), [item, isAdmin]);
+  const [sendToValue, setSendToValue] = useState('');
+  const [sendToStatus, setSendToStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [sendToMessage, setSendToMessage] = useState('');
   const noteLine = model.noteLine;
   const badgeRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const titleLineRef = useRef<HTMLParagraphElement | null>(null);
@@ -876,6 +883,55 @@ export const ActivityCard = ({
               );
             })}
           </div>
+
+          {item.visualStatus === 'complete' &&
+            item.downloadBookId &&
+            libraryFolders &&
+            libraryFolders.length > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <select
+                  className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  value={sendToValue}
+                  disabled={sendToStatus === 'loading' || sendToStatus === 'done'}
+                  onChange={async (e) => {
+                    const dest = e.target.value;
+                    if (!dest) return;
+                    setSendToValue(dest);
+                    setSendToStatus('loading');
+                    setSendToMessage('');
+                    try {
+                      const result = await moveToLibrary(item.downloadBookId!, dest);
+                      if (result.success) {
+                        setSendToStatus('done');
+                        setSendToMessage('Moved');
+                      } else {
+                        setSendToStatus('error');
+                        setSendToMessage(result.error ?? 'Failed');
+                      }
+                    } catch {
+                      setSendToStatus('error');
+                      setSendToMessage('Failed to move');
+                    }
+                  }}
+                >
+                  <option value="">Send to library…</option>
+                  {libraryFolders.map((f) => (
+                    <option key={f.path} value={f.path}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+                {sendToStatus === 'loading' && (
+                  <span className="text-xs text-gray-500">Moving…</span>
+                )}
+                {sendToStatus === 'done' && (
+                  <span className="text-xs text-green-600 dark:text-green-400">✓ {sendToMessage}</span>
+                )}
+                {sendToStatus === 'error' && (
+                  <span className="text-xs text-red-500">{sendToMessage}</span>
+                )}
+              </div>
+            )}
 
           {isRequestDetailsOpen && reviewRecord && reviewApproveHandler ? (
             <ReviewInlinePanel

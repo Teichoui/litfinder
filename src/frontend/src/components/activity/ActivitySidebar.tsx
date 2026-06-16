@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useRef, useState, type WheelEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from 'react';
 
 import { useTabIndicator } from '../../hooks/ui/useTabIndicator';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { RequestRecord, StatusData } from '../../types';
+import type { LibraryFolder } from '../../services/api';
+import { fetchLibraryFolders } from '../../services/api';
 import { Dropdown } from '../Dropdown';
 import { ActivityCard } from './ActivityCard';
 import type { DownloadStatusKey } from './activityMappers';
@@ -269,7 +271,12 @@ export const ActivitySidebar = ({
   const [rejectingRequest, setRejectingRequest] = useState<{ requestId: number } | null>(null);
   const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [libraryFolders, setLibraryFolders] = useState<LibraryFolder[]>([]);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    fetchLibraryFolders().then(setLibraryFolders).catch(() => {});
+  }, []);
   const dismissedKeySet = useMemo(() => new Set(dismissedItemKeys), [dismissedItemKeys]);
   const handleTabChange = useCallback(
     (nextTab: ActivityTabKey) => {
@@ -857,7 +864,7 @@ export const ActivitySidebar = ({
             return (
               <div className="divide-y divide-[color-mix(in_srgb,var(--border-muted)_60%,transparent)]">
                 {visibleItems.map((item) => (
-                  <ActivityCard key={item.id} item={item} isAdmin={isAdmin} />
+                  <ActivityCard key={item.id} item={item} isAdmin={isAdmin} libraryFolders={libraryFolders} />
                 ))}
                 {historyHasMore && (
                   <div className="pt-3 text-center">
@@ -997,6 +1004,7 @@ export const ActivitySidebar = ({
                                 }
                               : undefined
                           }
+                          libraryFolders={libraryFolders}
                         />
                       </div>
                     );

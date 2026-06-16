@@ -127,32 +127,17 @@ CONTENT_TYPES = [
     "other",
 ]
 
-# Maps AA content types to their config keys for content-type routing
-# Used when AA_CONTENT_TYPE_ROUTING is enabled
-_AA_CONTENT_TYPE_TO_CONFIG_KEY = {
-    "book (fiction)": "AA_CONTENT_TYPE_DIR_FICTION",
-    "book (non-fiction)": "AA_CONTENT_TYPE_DIR_NON_FICTION",
-    "book (unknown)": "AA_CONTENT_TYPE_DIR_UNKNOWN",
-    "magazine": "AA_CONTENT_TYPE_DIR_MAGAZINE",
-    "comic book": "AA_CONTENT_TYPE_DIR_COMIC",
-    "audiobook": "AA_CONTENT_TYPE_DIR_AUDIOBOOK",
-    "standards document": "AA_CONTENT_TYPE_DIR_STANDARDS",
-    "musical score": "AA_CONTENT_TYPE_DIR_MUSICAL_SCORE",
-    "other": "AA_CONTENT_TYPE_DIR_OTHER",
-}
 
-# Legacy mapping - kept for backwards compatibility during migration
-_LEGACY_CONTENT_TYPE_TO_CONFIG_KEY = {
-    "book (fiction)": "INGEST_DIR_BOOK_FICTION",
-    "book (non-fiction)": "INGEST_DIR_BOOK_NON_FICTION",
-    "book (unknown)": "INGEST_DIR_BOOK_UNKNOWN",
-    "magazine": "INGEST_DIR_MAGAZINE",
-    "comic book": "INGEST_DIR_COMIC_BOOK",
-    "audiobook": "INGEST_DIR_AUDIOBOOK",
-    "standards document": "INGEST_DIR_STANDARDS_DOCUMENT",
-    "musical score": "INGEST_DIR_MUSICAL_SCORE",
-    "other": "INGEST_DIR_OTHER",
-}
+def get_library_folders() -> list[dict[str, str]]:
+    """Return configured library folders as [{name, path}, ...] dicts."""
+    from shelfmark.core.config import config
+
+    folders = config.get("LIBRARY_FOLDERS") or []
+    return [
+        {"name": str(f.get("name", "")).strip(), "path": str(f.get("path", "")).strip()}
+        for f in folders
+        if isinstance(f, dict) and f.get("name") and f.get("path")
+    ]
 
 _USER_PLACEHOLDER_PATTERN = re.compile(r"\{user\}", re.IGNORECASE)
 _INVALID_USER_PATH_CHARS = re.compile(r'[\\/:*?"<>|]')
@@ -242,28 +227,7 @@ def get_destination(
 
 
 def get_aa_content_type_dir(content_type: str | None = None) -> Path | None:
-    """Get override directory for AA content-type routing if configured."""
-    from shelfmark.core.config import config
-
-    # Check if content-type routing is enabled (new or legacy setting)
-    if not config.get("AA_CONTENT_TYPE_ROUTING", False) and not config.get(
-        "USE_CONTENT_TYPE_DIRECTORIES", False
-    ):
-        return None
-
-    if not content_type:
-        return None
-
-    content_type_lower = content_type.lower().strip()
-
-    # Try new AA-specific config keys first, then legacy keys
-    for mapping in (_AA_CONTENT_TYPE_TO_CONFIG_KEY, _LEGACY_CONTENT_TYPE_TO_CONFIG_KEY):
-        config_key = mapping.get(content_type_lower)
-        if config_key:
-            custom_dir = _coerce_config_path(config.get(config_key, ""))
-            if custom_dir is not None:
-                return custom_dir
-
+    """Stub kept for call-site compatibility — routing is now manual via LIBRARY_FOLDERS."""
     return None
 
 

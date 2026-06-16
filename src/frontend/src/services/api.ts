@@ -59,7 +59,10 @@ const API = {
   activityDismiss: `${API_BASE}/activity/dismiss`,
   activityDismissMany: `${API_BASE}/activity/dismiss-many`,
   activityHistory: `${API_BASE}/activity/history`,
+  activityMove: `${API_BASE}/activity/move`,
   libraryFolders: `${API_BASE}/library-folders`,
+  libraryBrowse: `${API_BASE}/library/browse`,
+  libraryScan: `${API_BASE}/library/scan`,
   libraryOrganize: `${API_BASE}/library/organize`,
   libraryLs: `${API_BASE}/library/ls`,
   libraryRename: `${API_BASE}/library/rename`,
@@ -1007,10 +1010,32 @@ export const updateSelfUser = async (
   });
 };
 
-// Library file-management types and functions
 export interface LibraryFolder {
   name: string;
   path: string;
+}
+
+export const fetchLibraryFolders = async (): Promise<LibraryFolder[]> => {
+  return fetchJSON<LibraryFolder[]>(API.libraryFolders);
+};
+
+export const moveToLibrary = async (
+  taskId: string,
+  destination: string,
+): Promise<{ success: boolean; new_path?: string; error?: string }> => {
+  return fetchJSON(API.activityMove, {
+    method: 'POST',
+    body: JSON.stringify({ task_id: taskId, destination }),
+  });
+};
+
+// Library Management Types
+export interface ABSLibrary {
+  id: string;
+  name: string;
+  mediaType: string;
+  folders: Array<{ id: string; fullPath: string; libraryId: string }>;
+  stats: { totalItems: number; totalSize: number; totalDuration: number };
 }
 
 export interface DirEntry {
@@ -1029,9 +1054,17 @@ export interface OrganizeFilesResponse {
   summary: string;
 }
 
-export const fetchLibraryFolders = async (): Promise<LibraryFolder[]> => {
-  return fetchJSON<LibraryFolder[]>(API.libraryFolders);
-};
+// Library Management API Functions
+export const browseABSLibraries = async (): Promise<{ libraries: ABSLibrary[] }> =>
+  fetchJSON<{ libraries: ABSLibrary[] }>(API.libraryBrowse);
+
+export const scanLibrary = async (
+  libraryId: string,
+): Promise<{ success: boolean; message?: string }> =>
+  fetchJSON(API.libraryScan, {
+    method: 'POST',
+    body: JSON.stringify({ library_id: libraryId }),
+  });
 
 export const organizeFiles = async (
   files: Array<{ path: string }>,

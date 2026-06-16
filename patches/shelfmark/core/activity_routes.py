@@ -1105,3 +1105,63 @@ def register_activity_routes(
             },
         )
         return jsonify({"status": "cleared", "cleared_count": cleared_count})
+
+    @app.route("/api/activity/move", methods=["POST"])
+    def api_activity_move() -> Response | tuple[Response, int]:
+        import shutil
+        from pathlib import Path
+        from shelfmark.core.queue import book_queue
+
+        auth_gate = _require_authenticated(resolve_auth_mode, action="move")
+        if auth_gate is not None:
+            return auth_gate
+
+        data = request.get_json(silent=True) or {}
+        task_id = str(data.get("task_id") or "").strip()
+        destination = str(data.get("destination") or "").strip()
+
+        if not task_id or not destination:
+            return jsonify({"error": "task_id and destination required"}), 400
+
+        dest_path = Path(destination)
+        if not dest_path.is_absolute():
+            return jsonify({"error": "destination must be an absolute path"}), 400
+
+        from shelfmark.core.library_routes import _allowed_folder_roots, _is_within_allowed
+        allowed = _allowed_folder_roots()
+        if allowed and not _is_within_allowed(dest_path, allowed):
+            return jsonify({"error": "destination is not within a configured library folder"}), 403
+
+        download_path: str | None = None
+        task = book_queue.get_task(task_id)
+        if task and task.download_path:
+            download_path = task.download_path
+        else:
+            # Fall back to history DB for downloads completed before last restart
+            history_row = download_history_service.get_by_task_id(task_id)
+            if history_row:
+                download_path = DownloadHistoryService._resolve_existing_download_path(
+                    history_row.get("download_path")
+                )
+
+        if not download_path:
+            return jsonify({"error": "task not found or has no download path"}), 404
+
+        src = Path(download_path)
+        if not src.exists():
+            return jsonify({"error": "source file no longer exists"}), 404
+
+        try:
+            dest_path.mkdir(parents=True, exist_ok=True)
+            new_path = dest_path / src.name
+            counter = 1
+            while new_path.exists() and new_path != src:
+                new_path = dest_path / f"{src.stem} ({counter}){src.suffix}"
+                counter += 1
+            shutil.move(str(src), str(new_path))
+            if task:
+                book_queue.update_download_path(task_id, str(new_path))
+        except (OSError, shutil.Error) as exc:
+            return jsonify({"error": str(exc)}), 500
+
+        return jsonify({"success": True, "new_path": str(new_path)})

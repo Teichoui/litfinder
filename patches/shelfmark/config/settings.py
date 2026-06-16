@@ -354,6 +354,61 @@ def _get_aa_base_url_options() -> list[dict[str, str]]:
     return options
 
 
+def _detect_abs_libraries(current_values: dict) -> dict:
+    """Fetch libraries from Audiobookshelf and populate LIBRARY_FOLDERS."""
+    import requests
+    from shelfmark.core.settings_registry import save_config_file
+
+    from shelfmark.core.config import config as _config
+
+    abs_url = str(
+        current_values.get("AUDIOBOOKSHELF_URL")
+        or current_values.get("AUDIOBOOK_LIBRARY_URL")
+        or _config.get("AUDIOBOOK_LIBRARY_URL", "")
+        or ""
+    ).strip().rstrip("/")
+    abs_key = str(
+        current_values.get("AUDIOBOOKSHELF_API_KEY")
+        or _config.get("AUDIOBOOKSHELF_API_KEY", "")
+        or ""
+    ).strip()
+
+    if not abs_url:
+        return {"success": False, "message": "Set the Audiobookshelf URL in General settings first."}
+    if not abs_key:
+        return {"success": False, "message": "Audiobookshelf API key is required. Set it in General settings."}
+
+    try:
+        resp = requests.get(
+            f"{abs_url}/api/libraries",
+            headers={"Authorization": f"Bearer {abs_key}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        return {"success": False, "message": f"Failed to connect to Audiobookshelf: {exc}"}
+
+    libraries = []
+    for lib in data.get("libraries", []):
+        name = lib.get("name", "")
+        folders = lib.get("folders", [])
+        path = folders[0].get("fullPath", "") if folders else ""
+        if name and path:
+            libraries.append({"name": name, "path": path})
+
+    if not libraries:
+        return {"success": False, "message": "No libraries with configured folders found in Audiobookshelf."}
+
+    save_config_file("download_sources", {"LIBRARY_FOLDERS": libraries})
+
+    return {
+        "success": True,
+        "message": f"Imported {len(libraries)} librar{'y' if len(libraries) == 1 else 'ies'} — reload the page to see them.",
+        "details": [f"{lib['name']} → {lib['path']}" for lib in libraries],
+    }
+
+
 def _clear_covers_cache(current_values: dict) -> dict:
     """Clear the cover image cache."""
     try:
@@ -418,9 +473,15 @@ def general_settings() -> list[SettingsField]:
         ),
         TextField(
             key="AUDIOBOOK_LIBRARY_URL",
-            label="Audiobook Library URL",
-            description="Adds a separate navigation button for your audiobook library (Audiobookshelf, Plex, etc). When both URLs are set, icons are shown instead of text.",
+            label="Audiobookshelf URL",
+            description="Your Audiobookshelf address. Adds a navigation button and enables library scanning after downloads complete.",
             placeholder="http://audiobookshelf:8080",
+        ),
+        PasswordField(
+            key="AUDIOBOOKSHELF_API_KEY",
+            label="Audiobookshelf API Key",
+            description="Found in ABS → Settings → Users → your user → API Token. Used to import your libraries and trigger scans.",
+            placeholder="••••••••",
         ),
         HeadingField(
             key="search_defaults_heading",
@@ -1345,6 +1406,44 @@ def download_settings() -> list[SettingsField]:
             default=True,
             universal_only=True,
         ),
+        # === LIBRARY FOLDERS SECTION ===
+        HeadingField(
+            key="library_folders_heading",
+            title="Library Folders",
+            description=(
+                "Define your libraries. Files can be routed here via the 'Send to…' button "
+                "on completed downloads, or managed directly in the Library file browser."
+            ),
+        ),
+        ActionButton(
+            key="detect_abs_libraries",
+            label="Import Libraries from Audiobookshelf",
+            description="Fetches your ABS libraries using the URL and API key from General settings.",
+            style="primary",
+            callback=_detect_abs_libraries,
+        ),
+        TableField(
+            key="LIBRARY_FOLDERS",
+            label="Libraries",
+            description="Add as many libraries as you want.",
+            columns=[
+                {
+                    "key": "name",
+                    "label": "Library Name",
+                    "type": "text",
+                    "placeholder": "e.g. Audiobooks",
+                },
+                {
+                    "key": "path",
+                    "label": "Path",
+                    "type": "text",
+                    "placeholder": "e.g. /mnt/audiobooks",
+                },
+            ],
+            add_label="Add Library",
+            empty_message="No libraries configured. Add one manually or import from Audiobookshelf above.",
+            default=[],
+        ),
         # === OPTIONS SECTION ===
         HeadingField(
             key="options_heading",
@@ -1552,65 +1651,6 @@ def download_source_settings() -> list[SettingsField]:
             default=5,
             min_value=1,
             max_value=60,
-        ),
-        HeadingField(
-            key="content_type_routing_heading",
-            title="Content-Type Routing",
-            description="Route downloads to different folders based on content type. Only applies to Direct download source.",
-        ),
-        CheckboxField(
-            key="AA_CONTENT_TYPE_ROUTING",
-            label="Enable Content-Type Routing",
-            description="Override destination based on content type metadata.",
-            default=False,
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_FICTION",
-            label="Fiction Books",
-            placeholder="/books/fiction",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_NON_FICTION",
-            label="Non-Fiction Books",
-            placeholder="/books/non-fiction",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_UNKNOWN",
-            label="Unknown Books",
-            placeholder="/books/unknown",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_MAGAZINE",
-            label="Magazines",
-            placeholder="/books/magazines",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_COMIC",
-            label="Comic Books",
-            placeholder="/books/comics",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_STANDARDS",
-            label="Standards Documents",
-            placeholder="/books/standards",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_MUSICAL_SCORE",
-            label="Musical Scores",
-            placeholder="/books/scores",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
-        ),
-        TextField(
-            key="AA_CONTENT_TYPE_DIR_OTHER",
-            label="Other",
-            placeholder="/books/other",
-            show_when={"field": "AA_CONTENT_TYPE_ROUTING", "value": True},
         ),
     ]
 
