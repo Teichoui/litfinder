@@ -136,6 +136,18 @@ def audiobookshelf_settings() -> list[SettingsField]:
             ),
             default=False,
         ),
+        CheckboxField(
+            key="ABS_SCAN_ON_DOWNLOAD",
+            label="Trigger Audiobookshelf Scan First",
+            description=(
+                "Before the post-download sync, ask Audiobookshelf to scan its "
+                "library folders and wait for the new file to appear. Enable this "
+                "if Audiobookshelf is on a network share and only detects new "
+                "files on its own timer. Requires an admin API key and "
+                "'Sync After Download Completes' above."
+            ),
+            default=False,
+        ),
         MultiSelectField(
             key="ABS_SYNC_LIBRARY_IDS",
             label="Libraries to Sync",

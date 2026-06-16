@@ -99,10 +99,14 @@ def request_sync_after_download() -> None:
     """Schedule a single debounced sync shortly after a download completes.
 
     Repeated calls within the debounce window coalesce into one run, giving
-    Audiobookshelf time to ingest the new file before we re-scan.
+    Audiobookshelf time to ingest the new file before we re-scan. When
+    ABS_SCAN_ON_DOWNLOAD is enabled, the run first triggers an ABS folder scan
+    and waits for it to settle — needed when ABS sits on a network share and only
+    detects new files on its own timer.
     """
     if not coerce_bool(config.get("ABS_SYNC_ON_DOWNLOAD", False)):
         return
+    scan_first = coerce_bool(config.get("ABS_SCAN_ON_DOWNLOAD", False))
     with _lock:
         scheduler = _ensure_scheduler()
         run_date = datetime.now(UTC) + timedelta(seconds=_DOWNLOAD_DEBOUNCE_SECONDS)
@@ -111,6 +115,7 @@ def request_sync_after_download() -> None:
             trigger="date",
             run_date=run_date,
             id=_DOWNLOAD_JOB_ID,
+            kwargs={"scan_first": scan_first},
             replace_existing=True,
             max_instances=1,
             coalesce=True,

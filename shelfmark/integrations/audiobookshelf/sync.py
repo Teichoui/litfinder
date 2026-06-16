@@ -7,6 +7,7 @@ only one sync runs at a time.
 from __future__ import annotations
 
 import threading
+import time
 from typing import TYPE_CHECKING, Any
 
 from shelfmark.core.audiobookshelf_inventory_service import get_abs_inventory_service
@@ -16,6 +17,9 @@ from shelfmark.integrations.audiobookshelf.client import (
     AbsConfig,
     AbsError,
     abs_iter_inventory,
+    abs_library_item_count,
+    abs_list_libraries,
+    abs_scan_library,
 )
 
 if TYPE_CHECKING:
@@ -24,6 +28,10 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__)
 
 _sync_lock = threading.Lock()
+
+# Bound the wait for ABS to finish scanning so a stuck scan never hangs the sync.
+_SCAN_POLL_INTERVAL_SECONDS = 5
+_SCAN_POLL_TIMEOUT_SECONDS = 120
 
 
 def _notify_new_audiobooks(new_books: list[dict[str, Any]]) -> None:
@@ -75,8 +83,69 @@ def _selected_library_ids(overrides: Mapping[str, Any] | None) -> list[str]:
     return []
 
 
-def run_abs_sync(overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _resolve_scan_library_ids(cfg: AbsConfig, library_ids: list[Any]) -> list[Any]:
+    """Return the library IDs to scan: the configured subset, or all book libraries."""
+    if library_ids:
+        return list(library_ids)
+    return [lib["id"] for lib in abs_list_libraries(cfg) if lib.get("id") is not None]
+
+
+def trigger_abs_scan_and_wait(cfg: AbsConfig, library_ids: list[Any]) -> None:
+    """Trigger an ABS folder scan for the given libraries and wait for it to settle.
+
+    ABS's scan endpoint is fire-and-forget (returns 200 immediately, scans in the
+    background) and exposes no completion status over REST. To order the later
+    inventory read after the scan, we record each library's item count, trigger
+    the scan, then poll until the count stops changing (new item ingested) or a
+    timeout elapses. Best-effort: any ABS error is logged and the sync proceeds
+    with whatever ABS currently reports.
+    """
+    try:
+        targets = _resolve_scan_library_ids(cfg, library_ids)
+    except AbsError as exc:
+        logger.warning("Audiobookshelf scan skipped (could not list libraries): %s", exc)
+        return
+
+    before: dict[Any, int] = {}
+    for library_id in targets:
+        try:
+            before[library_id] = abs_library_item_count(cfg, library_id)
+            abs_scan_library(cfg, library_id)
+        except AbsError as exc:
+            logger.warning("Audiobookshelf scan trigger failed for library %s: %s", library_id, exc)
+
+    if not before:
+        return
+
+    deadline = time.monotonic() + _SCAN_POLL_TIMEOUT_SECONDS
+    pending = set(before)
+    while pending and time.monotonic() < deadline:
+        time.sleep(_SCAN_POLL_INTERVAL_SECONDS)
+        for library_id in list(pending):
+            try:
+                if abs_library_item_count(cfg, library_id) != before[library_id]:
+                    pending.discard(library_id)
+            except AbsError:
+                # Transient read failure: stop waiting on this library, let the
+                # inventory read below report whatever ABS has.
+                pending.discard(library_id)
+
+    if pending:
+        logger.info(
+            "Audiobookshelf scan wait timed out after %ds; syncing current state",
+            _SCAN_POLL_TIMEOUT_SECONDS,
+        )
+
+
+def run_abs_sync(
+    overrides: Mapping[str, Any] | None = None, *, scan_first: bool = False
+) -> dict[str, Any]:
     """Run a full Audiobookshelf inventory sync. Returns a summary dict.
+
+    When *scan_first* is set, trigger an ABS folder scan and wait for it to
+    settle before reading the inventory — used by the post-download path so the
+    just-added book is ingested by ABS (which, on network shares, only scans on
+    its own timer) before Shelfmark reads it.
 
     On error returns ``{"success": False, "error": "..."}`` without raising.
     """
@@ -94,6 +163,8 @@ def run_abs_sync(overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
 
     try:
         library_ids: list[Any] = list(_selected_library_ids(overrides))
+        if scan_first:
+            trigger_abs_scan_and_wait(cfg, library_ids)
         records = list(abs_iter_inventory(cfg, library_ids))
         result = inventory.replace_inventory(records)
         # Count distinct library IDs seen in the records rather than making a

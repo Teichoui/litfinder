@@ -109,6 +109,49 @@ def abs_list_libraries(cfg: AbsConfig) -> list[dict[str, Any]]:
     return [lib for lib in libraries if isinstance(lib, dict) and lib.get("mediaType") == "book"]
 
 
+def abs_scan_library(cfg: AbsConfig, library_id: Any) -> None:
+    """Trigger an async folder scan for a library (POST /libraries/{id}/scan).
+
+    Audiobookshelf returns immediately and scans in the background, so this only
+    kicks the scan off; callers must poll/wait to observe the result. Requires an
+    admin API key.
+    """
+    url = f"{cfg.base_url}/api/libraries/{library_id}/scan"
+    response = _request(
+        "POST", url, verify_tls=cfg.verify_tls, action="library scan", headers=_auth_headers(cfg)
+    )
+    if response.status_code in {401, 403}:
+        msg = f"{ABS_DISPLAY_NAME} scan requires an admin API key"
+        raise AbsError(msg)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        msg = f"Failed to trigger {ABS_DISPLAY_NAME} scan ({response.status_code})"
+        raise AbsError(msg) from exc
+
+
+def abs_library_item_count(cfg: AbsConfig, library_id: Any) -> int:
+    """Return the total number of items in a library (cheap: reads the total field)."""
+    url = f"{cfg.base_url}/api/libraries/{library_id}/items"
+    params = {"limit": 1, "page": 0}
+    response = _request(
+        "GET",
+        url,
+        verify_tls=cfg.verify_tls,
+        action="library item count",
+        headers=_auth_headers(cfg),
+        params=params,
+    )
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        msg = f"Failed to fetch {ABS_DISPLAY_NAME} item count ({response.status_code})"
+        raise AbsError(msg) from exc
+    data = _json(response, "library item count")
+    total = data.get("total") if isinstance(data, dict) else None
+    return int(total) if isinstance(total, (int, float)) else 0
+
+
 def _iter_library_items(cfg: AbsConfig, library_id: Any) -> Iterator[dict[str, Any]]:
     page = 0
     while True:
