@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 
 import type {
   MultiSelectFieldConfig,
@@ -147,46 +147,25 @@ function getFilteredSelectOptions(
   return options.filter((opt) => !opt.childOf || opt.childOf === filterValue);
 }
 
-function serializeRowKeyValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    return value.map((entry) => serializeRowKeyValue(entry)).join('|');
-  }
-
-  try {
-    return JSON.stringify(value) ?? '';
-  } catch {
-    return '[unserializable]';
-  }
-}
-
 export const TableField = ({ field, value, onChange, disabled }: TableFieldProps) => {
   const isDisabled = disabled ?? false;
 
   const columns = useMemo(() => field.columns ?? [], [field.columns]);
   const rows = useMemo(() => normalizeTableRows(value ?? [], columns), [value, columns]);
-  const rowEntries = useMemo(() => {
-    const rowOccurrences = new Map<string, number>();
 
-    return rows.map((row) => {
-      const baseKey = columns
-        .map((col) => `${col.key}:${serializeRowKeyValue(row[col.key])}`)
-        .join('||');
-      const occurrence = rowOccurrences.get(baseKey) ?? 0;
-
-      rowOccurrences.set(baseKey, occurrence + 1);
-
-      return {
-        row,
-        key: `${baseKey}::${occurrence}`,
-      };
-    });
-  }, [rows, columns]);
+  // Each row needs a React key that stays stable while its cells are edited.
+  // Deriving the key from the row's contents (the previous approach) changed the
+  // key on every keystroke, which remounted the row and made text inputs lose
+  // focus after a single character. Instead we assign a stable id per row that
+  // only changes when rows are added or removed.
+  const rowIdSeq = useRef(0);
+  const rowIds = useRef<string[]>([]);
+  while (rowIds.current.length < rows.length) {
+    rowIds.current.push(`row-${rowIdSeq.current++}`);
+  }
+  if (rowIds.current.length > rows.length) {
+    rowIds.current = rowIds.current.slice(0, rows.length);
+  }
 
   // Use minmax(0, ...) so the grid can shrink inside the settings modal.
   // Use fixed width for delete button column to ensure header/data alignment.
@@ -216,10 +195,12 @@ export const TableField = ({ field, value, onChange, disabled }: TableFieldProps
     columns.forEach((col) => {
       newRow[col.key] = defaultCellValue(col);
     });
+    rowIds.current = [...rowIds.current, `row-${rowIdSeq.current++}`];
     commitRows([...rows, newRow]);
   };
 
   const removeRow = (rowIndex: number) => {
+    rowIds.current = rowIds.current.filter((_, idx) => idx !== rowIndex);
     const next = rows.filter((_, idx) => idx !== rowIndex);
     commitRows(next);
   };
@@ -254,9 +235,9 @@ export const TableField = ({ field, value, onChange, disabled }: TableFieldProps
       </div>
 
       <div className="min-w-0 space-y-3">
-        {rowEntries.map(({ row, key: rowKey }, rowIndex) => (
+        {rows.map((row, rowIndex) => (
           <div
-            key={rowKey}
+            key={rowIds.current[rowIndex]}
             className={`grid grid-cols-1 ${gridTemplate} min-w-0 items-start gap-3`}
             style={{ overflow: 'visible' }}
           >
