@@ -334,6 +334,7 @@ export interface LoginCredentials {
   username: string;
   password: string;
   remember_me: boolean;
+  source?: string; // Kavita auth: which source to verify against ("local" | "kavita")
 }
 
 export interface AuthResponse {
@@ -349,6 +350,9 @@ export interface AuthResponse {
   oidc_button_label?: string;
   hide_local_auth?: boolean;
   oidc_auto_redirect?: boolean;
+  kavita_login_enabled?: boolean;
+  kavita_default_source?: string;
+  kavita_button_label?: string;
 }
 
 export interface ActingAsUserSelection {

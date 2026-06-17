@@ -2293,6 +2293,84 @@ def api_login() -> Response | tuple[Response, int]:
                 logger.error_trace(f"CWA database error during login: {e}")
                 return jsonify({"error": "Authentication system error"}), 500
 
+        # Kavita authentication mode (SSO). Supports a "local" source so the local
+        # admin can still sign in if Kavita is unavailable.
+        if auth_mode == "kavita":
+            from shelfmark.integrations.kavita.client import KavitaError, kavita_login_user
+
+            source = str(data.get("source") or "").strip().lower()
+            if source not in ("local", "kavita"):
+                source = str(app_config.get("KAVITA_DEFAULT_SOURCE", "kavita")).strip().lower()
+
+            if source == "local":
+                if user_db is None:
+                    return jsonify({"error": "Authentication service unavailable"}), 503
+                db_user = user_db.get_user(username=username)
+                if (
+                    not db_user
+                    or not db_user.get("password_hash")
+                    or not check_password_hash(db_user["password_hash"], password)
+                ):
+                    return _failed_login_response(username, ip_address)
+                is_admin = db_user["role"] == "admin"
+                session["user_id"] = username
+                session["db_user_id"] = db_user["id"]
+                session["is_admin"] = is_admin
+                session.permanent = remember_me
+                clear_failed_logins(username)
+                logger.info(
+                    "Login successful for user '%s' from IP %s (kavita mode, local source, is_admin=%s)",
+                    username,
+                    ip_address,
+                    is_admin,
+                )
+                return jsonify({"success": True})
+
+            if user_db is None:
+                return jsonify({"error": "Authentication service unavailable"}), 503
+            try:
+                kavita_user = kavita_login_user(
+                    str(app_config.get("KAVITA_URL", "")),
+                    username,
+                    password,
+                )
+            except KavitaError as exc:
+                logger.warning(
+                    "Kavita login failed for '%s' from IP %s: %s", username, ip_address, exc
+                )
+                return _failed_login_response(username, ip_address)
+
+            try:
+                from shelfmark.integrations.audiobookshelf.provisioning import provision_abs_user
+
+                provision_abs_user(username, password)
+            except Exception as exc:  # noqa: BLE001 - never block login on provisioning
+                logger.warning("Audiobookshelf provisioning hook error for '%s': %s", username, exc)
+
+            db_user, _ = upsert_external_user(
+                user_db,
+                auth_source="kavita",
+                username=kavita_user["username"] or username,
+                role="user",
+                email=kavita_user.get("email"),
+                collision_strategy="suffix",
+                sync_role=False,
+                context="kavita_login",
+            )
+            session["user_id"] = db_user["username"]
+            session["db_user_id"] = db_user["id"]
+            session["is_admin"] = db_user["role"] == "admin"
+            session.permanent = remember_me
+            clear_failed_logins(username)
+            logger.info(
+                "Login successful for user '%s' from IP %s (kavita auth, is_admin=%s, remember_me=%s)",
+                username,
+                ip_address,
+                session["is_admin"],
+                remember_me,
+            )
+            return jsonify({"success": True})
+
         # Should not reach here, but handle gracefully
         return jsonify({"error": "Unknown authentication mode"}), 500
 
@@ -2384,6 +2462,16 @@ def api_auth_check() -> Response | tuple[Response, int]:
 
         if auth_mode in ("builtin", "oidc") and DISABLE_LOCAL_AUTH:
             response_data["hide_local_auth"] = True
+
+        # Advertise the Kavita login option (and its default source/label) to the UI
+        if auth_mode == "kavita":
+            response_data["kavita_login_enabled"] = True
+            response_data["kavita_default_source"] = str(
+                app_config.get("KAVITA_DEFAULT_SOURCE", "kavita")
+            )
+            kavita_label = app_config.get("KAVITA_LOGIN_BUTTON_LABEL", "")
+            if kavita_label:
+                response_data["kavita_button_label"] = kavita_label
 
         # Add custom OIDC button label and SSO enforcement flags if configured
         if auth_mode == "oidc":

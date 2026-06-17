@@ -1,4 +1,4 @@
-"""Kavita REST API client: plugin auth, libraries, and inventory.
+"""Kavita REST API client: plugin auth, user login, libraries, and inventory.
 
 Modeled on shelfmark.download.outputs.booklore: requests + Bearer token + a
 frozen config dataclass. All authenticated calls send ``Authorization: Bearer``.
@@ -106,6 +106,54 @@ def kavita_authenticate_plugin(cfg: KavitaConfig) -> str:
         msg = f"{KAVITA_DISPLAY_NAME} did not return a token"
         raise KavitaError(msg)
     return str(token)
+
+
+def kavita_login_user(
+    base_url: str,
+    username: str,
+    password: str,
+    *,
+    verify_tls: bool = True,
+) -> dict[str, Any]:
+    """Validate a user's Kavita credentials (used for SSO login).
+
+    Returns a dict with ``token``, ``username``, ``email``, ``is_admin``, ``api_key``.
+    Raises KavitaError on bad credentials or transport failure.
+    """
+    base_url = (base_url or "").strip().rstrip("/")
+    if not base_url:
+        msg = f"{KAVITA_DISPLAY_NAME} URL is required"
+        raise KavitaError(msg)
+
+    url = f"{base_url}/api/Account/login"
+    payload = {"username": username, "password": password}
+    response = _request("POST", url, verify_tls=verify_tls, action="login", json_body=payload)
+    if response.status_code in {401, 403}:
+        msg = "Invalid Kavita username or password"
+        raise KavitaError(msg)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        msg = f"{KAVITA_DISPLAY_NAME} login failed ({response.status_code})"
+        raise KavitaError(msg) from exc
+
+    data = _json(response, "login")
+    token = data.get("token")
+    if not token:
+        msg = f"{KAVITA_DISPLAY_NAME} did not return a token"
+        raise KavitaError(msg)
+
+    roles = data.get("roles") or []
+    is_admin = isinstance(roles, list) and any(
+        str(role).strip().lower() == "admin" for role in roles
+    )
+    return {
+        "token": str(token),
+        "username": str(data.get("username") or username).strip(),
+        "email": (str(data.get("email")).strip() or None) if data.get("email") else None,
+        "is_admin": is_admin,
+        "api_key": data.get("apiKey"),
+    }
 
 
 def kavita_list_libraries(cfg: KavitaConfig, token: str) -> list[dict[str, Any]]:

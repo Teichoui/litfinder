@@ -293,6 +293,9 @@ function App() {
     oidcButtonLabel,
     hideLocalAuth,
     oidcAutoRedirect,
+    kavitaLoginEnabled,
+    kavitaDefaultSource,
+    kavitaButtonLabel,
     loginError,
     isLoggingIn,
     setIsAuthenticated,
@@ -2881,6 +2884,9 @@ function App() {
                 oidcButtonLabel={oidcButtonLabel}
                 hideLocalAuth={hideLocalAuth}
                 oidcAutoRedirect={oidcAutoRedirect}
+                kavitaLoginEnabled={kavitaLoginEnabled}
+                kavitaDefaultSource={kavitaDefaultSource}
+                kavitaButtonLabel={kavitaButtonLabel}
               />
             )
           }

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from shelfmark.config.env import DISABLE_LOCAL_AUTH
+from shelfmark.core.request_helpers import coerce_bool
 from shelfmark.core.user_db import UserDB
 from shelfmark.core.utils import normalize_http_url
 from shelfmark.download.network import get_ssl_verify
@@ -18,6 +19,37 @@ _OIDC_REQUIRED_FIELDS = (
     ("OIDC_CLIENT_ID", "Client ID"),
     ("OIDC_CLIENT_SECRET", "Client Secret"),
 )
+
+
+def _has_kavita_config() -> bool:
+    """Return True if a Kavita URL and API key are configured."""
+    from shelfmark.integrations.kavita.sync import build_kavita_config
+
+    cfg = build_kavita_config()
+    return bool(cfg.base_url and cfg.api_key)
+
+
+def _has_abs_config() -> bool:
+    """Return True if an Audiobookshelf URL and API key are configured."""
+    from shelfmark.integrations.audiobookshelf.sync import build_abs_config
+
+    cfg = build_abs_config()
+    return bool(cfg.base_url and cfg.api_key)
+
+
+def _abs_reachable() -> bool:
+    """Return True if the configured Audiobookshelf answers a libraries request."""
+    try:
+        from shelfmark.integrations.audiobookshelf.client import abs_list_libraries
+        from shelfmark.integrations.audiobookshelf.sync import build_abs_config
+
+        cfg = build_abs_config()
+        if not cfg.base_url or not cfg.api_key:
+            return False
+        abs_list_libraries(cfg)
+    except Exception:  # noqa: BLE001 - any failure means "not reachable"
+        return False
+    return True
 
 
 def _has_local_password_admin() -> bool:
@@ -77,6 +109,40 @@ def on_save_security(
 
     effective_values = _load_effective_security_values(normalized_values)
     auth_method = str(effective_values.get("AUTH_METHOD", "") or "").strip().lower()
+
+    if auth_method == "kavita":
+        if not _has_kavita_config():
+            return {
+                "error": True,
+                "message": (
+                    "Kavita is not configured. Go to the Kavita settings tab, "
+                    "enter your Kavita URL and API key, test the connection, and save before "
+                    "enabling Kavita as the authentication source."
+                ),
+                "values": normalized_values,
+            }
+        if not _has_local_password_admin():
+            return {
+                "error": True,
+                "message": (
+                    "A local admin account with a password is required before enabling Kavita "
+                    "login. Use the 'Go to Users' button above to create one. "
+                    "This ensures you can still sign in if Kavita is unavailable."
+                ),
+                "values": normalized_values,
+            }
+        if coerce_bool(effective_values.get("KAVITA_PROVISION_ABS_USERS"), default=False) and (
+            not _has_abs_config() or not _abs_reachable()
+        ):
+            return {
+                "error": True,
+                "message": (
+                    "Audiobookshelf must be configured (URL + API key) and reachable before "
+                    "enabling auto-provisioning. Set it up in the Audiobookshelf settings tab and "
+                    "test the connection."
+                ),
+                "values": normalized_values,
+            }
 
     if auth_method == "oidc":
         if not DISABLE_LOCAL_AUTH and not _has_local_password_admin():

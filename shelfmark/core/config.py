@@ -107,6 +107,10 @@ class Config:
             import_module("shelfmark.config.security")
             import_module("shelfmark.config.settings")
             import_module("shelfmark.config.users_settings")
+            # Kavita/Audiobookshelf keys (e.g. KAVITA_URL) must be in the cache for
+            # auth-mode resolution at login time, not just after a settings-page load.
+            import_module("shelfmark.config.kavita_settings")
+            import_module("shelfmark.config.audiobookshelf_settings")
             import_module("shelfmark.metadata_providers")
             import_module("shelfmark.release_sources")
         except ImportError:

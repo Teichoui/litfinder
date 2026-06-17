@@ -221,6 +221,125 @@ class TestLoginSemantics:
             assert "is_admin" not in sess
 
 
+class TestKavitaLogin:
+    def test_kavita_local_source_uses_db_password(
+        self, main_module, client, temp_user_db, monkeypatch
+    ):
+        monkeypatch.setattr(main_module, "user_db", temp_user_db)
+        user = temp_user_db.create_user(
+            username="admin",
+            password_hash=generate_password_hash("secret"),
+            role="admin",
+        )
+
+        with patch.object(main_module, "get_auth_mode", return_value="kavita"):
+            response = client.post(
+                "/api/auth/login",
+                json={
+                    "username": "admin",
+                    "password": "secret",
+                    "remember_me": False,
+                    "source": "local",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"success": True}
+        with client.session_transaction() as sess:
+            assert sess["user_id"] == "admin"
+            assert sess["db_user_id"] == user["id"]
+            assert sess["is_admin"] is True
+
+    def test_kavita_source_validates_against_kavita_and_creates_session(
+        self, main_module, client, temp_user_db, monkeypatch
+    ):
+        monkeypatch.setattr(main_module, "user_db", temp_user_db)
+        monkeypatch.setattr(
+            "shelfmark.integrations.kavita.client.kavita_login_user",
+            lambda base_url, username, password: {
+                "username": "reader",
+                "email": "reader@example.com",
+                "is_admin": False,
+                "token": "t",
+                "api_key": None,
+            },
+        )
+        # Keep the provisioning hook inert so no ABS calls happen.
+        monkeypatch.setattr(
+            "shelfmark.integrations.audiobookshelf.provisioning.provision_abs_user",
+            lambda username, password: None,
+        )
+
+        with patch.object(main_module, "get_auth_mode", return_value="kavita"):
+            response = client.post(
+                "/api/auth/login",
+                json={
+                    "username": "reader",
+                    "password": "pw",
+                    "remember_me": True,
+                    "source": "kavita",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"success": True}
+        with client.session_transaction() as sess:
+            assert sess["user_id"] == "reader"
+            assert sess["is_admin"] is False
+        created = temp_user_db.get_user(username="reader")
+        assert created is not None
+        assert created["auth_source"] == "kavita"
+
+    def test_kavita_source_rejects_bad_credentials(
+        self, main_module, client, temp_user_db, monkeypatch
+    ):
+        from shelfmark.integrations.kavita.client import KavitaError
+
+        monkeypatch.setattr(main_module, "user_db", temp_user_db)
+
+        def _raise(base_url, username, password):
+            raise KavitaError("Invalid Kavita username or password")
+
+        monkeypatch.setattr(
+            "shelfmark.integrations.kavita.client.kavita_login_user", _raise
+        )
+
+        with patch.object(main_module, "get_auth_mode", return_value="kavita"):
+            response = client.post(
+                "/api/auth/login",
+                json={
+                    "username": "reader",
+                    "password": "bad",
+                    "remember_me": False,
+                    "source": "kavita",
+                },
+            )
+
+        assert response.status_code == 401
+        assert response.get_json()["error"] == "Invalid username or password."
+        assert main_module.failed_login_attempts["reader"]["count"] == 1
+
+    def test_auth_check_advertises_kavita_login(self, main_module, client):
+        overrides = {
+            "KAVITA_DEFAULT_SOURCE": "local",
+            "KAVITA_LOGIN_BUTTON_LABEL": "Sign in with Kavita",
+        }
+        with patch.object(main_module, "get_auth_mode", return_value="kavita"):
+            with patch.object(
+                main_module.app_config,
+                "get",
+                side_effect=lambda key, default=None, user_id=None: overrides.get(key, default),
+            ):
+                response = client.get("/api/auth/check")
+
+        assert response.status_code == 200
+        body = response.get_json()
+        assert body["auth_mode"] == "kavita"
+        assert body["kavita_login_enabled"] is True
+        assert body["kavita_default_source"] == "local"
+        assert body["kavita_button_label"] == "Sign in with Kavita"
+
+
 class TestLoginLockoutRepair:
     def test_is_account_locked_repairs_missing_timestamp(self, main_module):
         main_module.failed_login_attempts.clear()

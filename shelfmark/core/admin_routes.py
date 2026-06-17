@@ -26,6 +26,7 @@ from shelfmark.core.admin_settings_routes import (
 from shelfmark.core.auth_modes import (
     AUTH_SOURCE_BUILTIN,
     AUTH_SOURCE_CWA,
+    AUTH_SOURCE_KAVITA,
     AUTH_SOURCE_OIDC,
     AUTH_SOURCE_PROXY,
     is_user_active_for_auth_mode,
@@ -73,7 +74,7 @@ def _get_user_edit_capabilities(
         )
     )
     role_managed_by_oidc_group = auth_source == AUTH_SOURCE_OIDC and oidc_use_admin_group
-    can_edit_role = auth_source == AUTH_SOURCE_BUILTIN or (
+    can_edit_role = auth_source in (AUTH_SOURCE_BUILTIN, AUTH_SOURCE_KAVITA) or (
         auth_source == AUTH_SOURCE_OIDC and not role_managed_by_oidc_group
     )
 

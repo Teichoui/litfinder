@@ -10,6 +10,7 @@
 > [!NOTE]
 > **This fork adds:**
 > - **Kavita & Audiobookshelf integration** — live inventory sync so search results show "already owned" badges for books and series you already have in your library, plus optional notifications when new items appear in a connected library
+> - **Kavita login (SSO)** — let users sign in with their Kavita account, with a local-admin fallback so you're never locked out if Kavita is down, and optional auto-creation of a matching Audiobookshelf account on first login
 > - **Audiobookshelf scan-on-download** — an opt-in setting that asks Audiobookshelf to scan its libraries right after a download (and waits for the new item to appear) before syncing inventory, so books on network shares aren't missed
 > - **In-app file manager** — browse, rename, move, and create folders within any configured library folder directly from the UI (Library Manager button in header)
 > - **Custom source plugin system** — install third-party source plugins into your config directory without modifying the container; plugins are auto-installed on startup ([LitFinder-Custom-Sources](https://github.com/NemesisHubris/LitFinder-Custom-Sources))
@@ -175,6 +176,10 @@ If you're running Calibre-Web, you can reuse its user database by mounting it:
 volumes:
   - /path/to/calibre-web/app.db:/auth/app.db:ro
 ```
+
+**5. Kavita (SSO)**
+
+Reuse your Kavita accounts: users sign in with their Kavita username and password (verified against Kavita's API). Configure the Kavita URL and API key in the Kavita settings tab first. A local admin account is required as a fallback so you can still sign in if Kavita is unreachable, and the login page lets users choose between Kavita and Local. Optionally auto-creates a matching Audiobookshelf user on first login.
 
 ### Multi-User Support
 

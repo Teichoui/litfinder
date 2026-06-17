@@ -411,7 +411,10 @@ class TestSecuritySettings:
         action = next((f for f in fields if f.key == "open_users_tab"), None)
         assert action is not None
         assert action.label == "Go to Users"
-        assert action.show_when == {"field": "AUTH_METHOD", "value": ["builtin", "oidc"]}
+        assert action.show_when == {
+            "field": "AUTH_METHOD",
+            "value": ["builtin", "oidc", "kavita"],
+        }
 
 
 class TestSecurityOnSave:
