@@ -321,10 +321,12 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(
       inputRef.current?.focus();
     };
 
+    // The search-context panel stays open while these settings are toggled, so the
+    // user can adjust content type and search target in one pass instead of reopening
+    // it for each change. It still dismisses on click-away, pointer-leave, or submit.
     const handleContentTypeSelect = (type: ContentType) => {
       onContentTypeChange?.(type);
       onCombinedModeChange?.(false);
-      setIsSelectorOpen(false);
     };
 
     const handleCombinedModeSelect = () => {
@@ -335,7 +337,6 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(
         onContentTypeChange?.('ebook');
         onCombinedModeChange?.(true);
       }
-      setIsSelectorOpen(false);
     };
 
     const handleQueryTargetSelect = (targetKey: string) => {
@@ -348,7 +349,11 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(
       setIsSelectOpen(shouldOpenSelect);
       setIsAutocompleteOpen(false);
       resetAutocomplete();
-      setIsSelectorOpen(false);
+      // Targets that open their own value picker close the panel to avoid two
+      // overlapping dropdowns; all others keep it open for further adjustments.
+      if (shouldOpenSelect) {
+        setIsSelectorOpen(false);
+      }
     };
 
     const effectivePlaceholder = getDefaultPlaceholder(
