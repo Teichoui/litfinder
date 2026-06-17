@@ -347,3 +347,55 @@ def test_book_matches_requested_languages_logic():
     assert dd._book_matches_requested_languages(None, set()) is True
     assert dd._book_matches_requested_languages("en", {"fr"}) is False
     assert dd._book_matches_requested_languages("fr", {"fr"}) is True
+
+
+def test_search_books_keeps_results_when_no_files_string_present(monkeypatch):
+    """Regression for #1067.
+
+    The "No files found." marker only means an empty result when there is no
+    results table. A populated results page that happens to contain that string
+    elsewhere must still return its rows.
+    """
+    import shelfmark.release_sources.direct_download as dd
+
+    monkeypatch.setattr(dd.network, "get_aa_base_url", lambda: "https://mirror.example")
+    monkeypatch.setattr(dd.network, "AAMirrorSelector", lambda: object())
+
+    def _fake_html_get_page(url: str, selector, allow_bypasser_fallback=False):
+        del url, selector, allow_bypasser_fallback
+        return r"""
+        <div>No files found.</div>
+        <table>
+            <tr>
+                <td><a href="/md5/rec-1"><img src="c.jpg"></a></td>
+                <td><span>A Book Title</span></td><td><span>Author</span></td>
+                <td><span>Publisher</span></td><td><span>2025</span></td>
+                <td><span>-</span></td><td><span>-</span></td><td></td>
+                <td><span>fiction</span></td><td><span>epub</span></td>
+                <td><span>1 mb</span></td>
+                <td><span>lgli/path/Book.epub</span></td>
+            </tr>
+        </table>
+        """
+
+    monkeypatch.setattr(dd.downloader, "html_get_page", _fake_html_get_page)
+
+    records = dd.search_books("demo", SearchFilters())
+
+    assert len(records) == 1
+    assert records[0].id == "rec-1"
+
+
+def test_search_books_empty_when_no_table_and_no_files_marker(monkeypatch):
+    """A page with no results table and the marker is still treated as empty."""
+    import shelfmark.release_sources.direct_download as dd
+
+    monkeypatch.setattr(dd.network, "get_aa_base_url", lambda: "https://mirror.example")
+    monkeypatch.setattr(dd.network, "AAMirrorSelector", lambda: object())
+    monkeypatch.setattr(
+        dd.downloader,
+        "html_get_page",
+        lambda url, selector, allow_bypasser_fallback=False: "<html><body>No files found.</body></html>",
+    )
+
+    assert dd.search_books("demo", SearchFilters()) == []
