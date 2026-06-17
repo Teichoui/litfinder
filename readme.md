@@ -10,17 +10,14 @@
 > [!NOTE]
 > **This fork adds:**
 > - **Kavita & Audiobookshelf integration** — live inventory sync so search results show "already owned" badges for books and series you already have in your library, plus optional notifications when new items appear in a connected library
+> - **Audiobookshelf scan-on-download** — an opt-in setting that asks Audiobookshelf to scan its libraries right after a download (and waits for the new item to appear) before syncing inventory, so books on network shares aren't missed
 > - **In-app file manager** — browse, rename, move, and create folders within any configured library folder directly from the UI (Library Manager button in header)
-> - **Library Folders registry** — a universal folder list under Settings → Library Folders, shared by the file manager; works with any library server
 > - **Custom source plugin system** — install third-party source plugins into your config directory without modifying the container; plugins are auto-installed on startup ([LitFinder-Custom-Sources](https://github.com/NemesisHubris/LitFinder-Custom-Sources))
-> - **"Leave in Place" output handler** — a noop delivery mode that skips moving the file after download, leaving it wherever the download client put it
-> - **Multi-book flat-folder grouping** — when a download lands as a flat folder of files from multiple books, automatically splits them into per-book subfolders before delivery
-> - **Richer title search** — multi-variant query generation strips edition markers, volume labels, and bracket annotations so the same book matches even when sources index it differently
-> - **Language auto-detection** — detects book language from Anna's Archive distant-mirror paths so results are tagged correctly without a manual language field
-> - **Activity feed display names** — admin users see real display names in the activity feed instead of raw user IDs
-> - **Fuzzy title/author/ISBN matching** — shared utility for matching books across integrations using normalised, accent-folded comparisons
-> - **Bug fixes** — AA slow-download infinite loop cap, empty destination dir cleanup on write-probe failure, activity snapshot refresh after cancel, rTorrent audiobook label, mirror URL query param handling, notification proxy passthrough, Transmission 100% complete detection
+> - **Smaller touches** — universal Library Folders registry, "Leave in Place" output mode, multi-book flat-folder splitting, richer multi-variant title search, language auto-detection, fuzzy title/author/ISBN matching, a persistent search-options menu, clearer purple "already in library" badges, and real display names in the activity feed
+> - **Bug fixes** — AA slow-download infinite loop cap, empty destination dir cleanup on write-probe failure, activity snapshot refresh after cancel, rTorrent audiobook label, mirror URL query param handling, notification proxy passthrough, Transmission 100% complete detection, settings table inputs only accepting one character at a time
 > - **Upstream ports** — IRC anti-spam cooldown + bot requirement, `?content_type=combined` URL param + `FORCE_COMBINED_SEARCH` setting, 7 security vulnerability fixes
+
+[![GitHub Repo stars](https://img.shields.io/github/stars/NemesisHubris/litfinder?style=social)](https://github.com/NemesisHubris/litfinder/stargazers)
 
 LitFinder is a self-hosted web interface for searching and requesting books and audiobooks across multiple sources. Bring your own sources, metadata providers, and download clients to build a single hub for your digital library. Supports multiple users with a built-in request system, so you can share your instance with others and let them browse and request books on their own.
 
@@ -271,3 +268,9 @@ Bug reports and questions → [open an issue](https://github.com/NemesisHubris/l
 If LitFinder saves you time, a coffee helps keep it going:
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nemisishubris)
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=NemesisHubris%2Flitfinder&type=date&legend=top-left">
+  <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=NemesisHubris/litfinder&type=date&theme=dark&legend=top-left" />
+</a>
