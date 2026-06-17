@@ -41,14 +41,14 @@ const buildPills = (book: Book): Pill[] => {
     pills.push({
       key: 'audio-series',
       label: `Audiobook ${audioOwned}${total ? `/${total}` : ''}`,
-      className: 'border border-amber-700 bg-amber-600',
+      className: 'border border-purple-700 bg-purple-600',
       title: 'Books of this series already in your audiobook library',
     });
   } else if (book.abs_available) {
     pills.push({
       key: 'audio',
       label: 'Audiobook',
-      className: 'border border-amber-700 bg-amber-600',
+      className: 'border border-purple-700 bg-purple-600',
       title: 'This audiobook is already in your Audiobookshelf library',
     });
   }
@@ -70,7 +70,7 @@ export const LibraryBadge = ({ book, variant = 'inline' }: LibraryBadgeProps) =>
       : undefined;
 
   return (
-    <span className={variant === 'overlay' ? 'flex flex-col items-end gap-1' : 'inline-flex gap-1'}>
+    <span className={variant === 'overlay' ? 'flex flex-col items-start gap-1' : 'inline-flex gap-1'}>
       {pills.map((pill) => (
         <span
           key={pill.key}

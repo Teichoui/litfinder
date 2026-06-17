@@ -97,7 +97,9 @@ export const CardView = ({
               #{book.series_position}
             </div>
           )}
-          <div className="absolute top-2 right-2 z-10">
+          {/* Bottom-left keeps the in-library marker clear of the series-number tag
+              (top-left) and the hover action buttons (bottom-right) on narrow covers. */}
+          <div className="absolute bottom-2 left-2 z-10">
             <LibraryBadge book={book} variant="overlay" />
           </div>
           {book.preview && !imageError ? (
