@@ -5,7 +5,7 @@
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nemisishubris)
 
 > [!IMPORTANT]
-> This is an **actively maintained community fork** of [calibrain/shelfmark](https://github.com/calibrain/shelfmark). New features, bug fixes, and improvements are added here. The upstream project is no longer under active maintenance.
+> This is an **actively maintained community fork** of [calibrain/shelfmark](https://github.com/calibrain/shelfmark). New features, bug fixes, and improvements are added here. Upstream isn't archived — the original developer still monitors security and reviews/merges community pull requests — but is no longer actively developing new features, so feature work now lives in community forks like this one.
 
 > [!NOTE]
 > **This fork adds:**
@@ -15,7 +15,7 @@
 > - **Custom source plugin system** — install third-party source plugins into your config directory without modifying the container; plugins are auto-installed on startup ([LitFinder-Custom-Sources](https://github.com/NemesisHubris/LitFinder-Custom-Sources))
 > - **Smaller touches** — universal Library Folders registry, "Leave in Place" output mode, multi-book flat-folder splitting, richer multi-variant title search, language auto-detection, fuzzy title/author/ISBN matching, a persistent search-options menu, clearer purple "already in library" badges, and real display names in the activity feed
 > - **Bug fixes** — AA slow-download infinite loop cap, empty destination dir cleanup on write-probe failure, activity snapshot refresh after cancel, rTorrent audiobook label, mirror URL query param handling, notification proxy passthrough, Transmission 100% complete detection, settings table inputs only accepting one character at a time
-> - **Upstream ports** — IRC anti-spam cooldown + bot requirement, `?content_type=combined` URL param + `FORCE_COMBINED_SEARCH` setting, 7 security vulnerability fixes
+> - **Upstream ports** — IRC anti-spam + bot requirement, query-identity IRC result caching, untrusted-URL torrent prefetch fix, `?content_type=combined` URL param + `FORCE_COMBINED_SEARCH` setting, 7 security vulnerability fixes
 
 LitFinder is a self-hosted web interface for searching and requesting books and audiobooks across multiple sources. Bring your own sources, metadata providers, and download clients to build a single hub for your digital library. Supports multiple users with a built-in request system, so you can share your instance with others and let them browse and request books on their own.
 
