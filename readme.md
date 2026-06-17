@@ -17,8 +17,6 @@
 > - **Bug fixes** — AA slow-download infinite loop cap, empty destination dir cleanup on write-probe failure, activity snapshot refresh after cancel, rTorrent audiobook label, mirror URL query param handling, notification proxy passthrough, Transmission 100% complete detection, settings table inputs only accepting one character at a time
 > - **Upstream ports** — IRC anti-spam cooldown + bot requirement, `?content_type=combined` URL param + `FORCE_COMBINED_SEARCH` setting, 7 security vulnerability fixes
 
-[![GitHub Repo stars](https://img.shields.io/github/stars/NemesisHubris/litfinder?style=social)](https://github.com/NemesisHubris/litfinder/stargazers)
-
 LitFinder is a self-hosted web interface for searching and requesting books and audiobooks across multiple sources. Bring your own sources, metadata providers, and download clients to build a single hub for your digital library. Supports multiple users with a built-in request system, so you can share your instance with others and let them browse and request books on their own.
 
 Works great alongside the following library tools, with support for automatic imports:
