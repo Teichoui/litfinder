@@ -83,7 +83,7 @@ def _auth_headers(cfg: AbsConfig) -> dict[str, str]:
 
 
 def abs_list_libraries(cfg: AbsConfig) -> list[dict[str, Any]]:
-    """Return book/audiobook libraries as ``[{id, name, mediaType}, ...]``."""
+    """Return book/audiobook/podcast libraries as ``[{id, name, mediaType}, ...]``."""
     if not cfg.base_url:
         msg = f"{ABS_DISPLAY_NAME} URL is required"
         raise AbsError(msg)
@@ -108,7 +108,11 @@ def abs_list_libraries(cfg: AbsConfig) -> list[dict[str, Any]]:
     libraries = data.get("libraries") if isinstance(data, dict) else None
     if not isinstance(libraries, list):
         return []
-    return [lib for lib in libraries if isinstance(lib, dict) and lib.get("mediaType") == "book"]
+    return [
+        lib
+        for lib in libraries
+        if isinstance(lib, dict) and lib.get("mediaType") in ("book", "podcast")
+    ]
 
 
 def abs_scan_library(cfg: AbsConfig, library_id: Any) -> None:

@@ -57,7 +57,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
 ENV FLASK_PORT=8084
 
 # Configure locale, timezone, and perform initial cleanup in a single layer
-RUN apt-get update && \
+# deb.debian.org's plain-HTTP endpoint 404s; force HTTPS before apt-get update.
+# (sources.list.d/sources.list may not both exist depending on base image, so
+# don't let a missing-path `find` exit code abort this RUN via pipefail.)
+RUN (find /etc/apt/sources.list.d /etc/apt/sources.list -type f 2>/dev/null | xargs -r sed -i 's#http://deb.debian.org#https://deb.debian.org#g') ; \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
     # For locale
     locales tzdata \
