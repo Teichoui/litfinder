@@ -212,6 +212,41 @@ def _get_oidc_client() -> tuple[Any, dict[str, Any]]:
     }
 
 
+def build_oidc_logout_url(id_token: str | None) -> str | None:
+    """Build an RP-Initiated Logout URL for the configured IdP, if it supports one.
+
+    Clearing our own session cookie alone doesn't end the IdP's SSO session, so
+    without this the IdP silently re-authenticates the next login attempt instead
+    of prompting for credentials. Returns None if OIDC isn't configured or the
+    provider doesn't advertise an end_session_endpoint.
+    """
+    try:
+        client, _ = _get_oidc_client()
+        metadata = client.load_server_metadata()
+    except _OIDC_CLIENT_ERRORS:
+        logger.debug("OIDC logout: could not load provider metadata", exc_info=True)
+        return None
+
+    end_session_endpoint = metadata.get("end_session_endpoint") if isinstance(metadata, dict) else None
+    if not end_session_endpoint or not isinstance(end_session_endpoint, str):
+        return None
+
+    # Reuse the same configured/derived origin as the login callback, since most
+    # IdPs require post_logout_redirect_uri to match a registered redirect origin.
+    configured_base = str(app_config.get("OIDC_REDIRECT_BASE_URL") or "").rstrip("/")
+    post_logout_redirect_uri = configured_base or request.url_root.rstrip("/")
+
+    params: dict[str, str] = {"post_logout_redirect_uri": post_logout_redirect_uri}
+    client_id = str(app_config.get("OIDC_CLIENT_ID", "") or "")
+    if client_id:
+        params["client_id"] = client_id
+    if id_token:
+        params["id_token_hint"] = id_token
+
+    separator = "&" if "?" in end_session_endpoint else "?"
+    return f"{end_session_endpoint}{separator}{urlencode(params)}"
+
+
 def register_oidc_routes(app: Flask, user_db: UserDB) -> None:
     """Register OIDC authentication routes on the Flask app."""
     oauth.init_app(app)
@@ -343,6 +378,10 @@ def register_oidc_routes(app: Flask, user_db: UserDB) -> None:
             session["user_id"] = user["username"]
             session["is_admin"] = user.get("role") == "admin"
             session["db_user_id"] = user["id"]
+            # Kept so logout can perform RP-Initiated Logout (see build_oidc_logout_url).
+            # Without it, clearing our own session cookie leaves the IdP's SSO session
+            # alive, so the next login silently re-authenticates instead of prompting.
+            session["oidc_id_token"] = token.get("id_token")
             session.permanent = True
 
             logger.info("OIDC login successful: %s (admin=%s)", user["username"], is_admin)

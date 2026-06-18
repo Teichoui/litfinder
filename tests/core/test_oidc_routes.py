@@ -197,6 +197,7 @@ class TestOIDCCallbackEndpoint:
     def test_callback_creates_session(self, mock_get_client, client):
         fake_client = Mock()
         fake_client.authorize_access_token.return_value = {
+            "id_token": "fake-id-token",
             "userinfo": {
                 "sub": "user-123",
                 "email": "john@example.com",
@@ -216,6 +217,8 @@ class TestOIDCCallbackEndpoint:
             assert sess["db_user_id"] is not None
             assert sess["is_admin"] is False
             assert sess.permanent is True
+            # Stashed so logout can perform RP-Initiated Logout (see #4).
+            assert sess["oidc_id_token"] == "fake-id-token"
 
     @patch("shelfmark.core.oidc_routes._get_oidc_client")
     def test_callback_redirects_to_original_url_with_query(self, mock_get_client, client):
@@ -671,3 +674,88 @@ class TestOIDCCallbackEndpoint:
 
         original = user_db.get_user(username="existing")
         assert original["oidc_subject"] is None
+
+
+class TestBuildOidcLogoutUrl:
+    """build_oidc_logout_url performs RP-Initiated Logout so the IdP's SSO session
+    actually ends, otherwise the next login silently re-authenticates (see #4)."""
+
+    @patch("shelfmark.core.oidc_routes._get_oidc_client")
+    def test_returns_none_when_provider_has_no_end_session_endpoint(self, mock_get_client):
+        from shelfmark.core.oidc_routes import build_oidc_logout_url
+
+        fake_client = Mock()
+        fake_client.load_server_metadata.return_value = {"issuer": "https://auth.example.com"}
+        mock_get_client.return_value = (fake_client, MOCK_OIDC_CONFIG)
+
+        assert build_oidc_logout_url("some-id-token") is None
+
+    @patch("shelfmark.core.oidc_routes._get_oidc_client", side_effect=ValueError("not configured"))
+    def test_returns_none_when_oidc_not_configured(self, _mock_get_client):
+        from shelfmark.core.oidc_routes import build_oidc_logout_url
+
+        assert build_oidc_logout_url(None) is None
+
+    @patch(
+        "shelfmark.core.oidc_routes.app_config.get", side_effect=_config_getter(MOCK_OIDC_CONFIG)
+    )
+    @patch("shelfmark.core.oidc_routes._get_oidc_client")
+    def test_builds_url_with_id_token_hint_and_client_id(self, mock_get_client, _mock_config, app):
+        from shelfmark.core.oidc_routes import build_oidc_logout_url
+
+        fake_client = Mock()
+        fake_client.load_server_metadata.return_value = {
+            "end_session_endpoint": "https://auth.example.com/logout"
+        }
+        mock_get_client.return_value = (fake_client, MOCK_OIDC_CONFIG)
+
+        with app.test_request_context("/"):
+            logout_url = build_oidc_logout_url("the-id-token")
+
+        assert logout_url is not None
+        parsed = urlparse(logout_url)
+        assert parsed.scheme == "https"
+        assert parsed.netloc == "auth.example.com"
+        assert parsed.path == "/logout"
+        params = parse_qs(parsed.query)
+        assert params["id_token_hint"] == ["the-id-token"]
+        assert params["client_id"] == [MOCK_OIDC_CONFIG["OIDC_CLIENT_ID"]]
+        assert "post_logout_redirect_uri" in params
+
+    @patch("shelfmark.core.oidc_routes.app_config.get")
+    @patch("shelfmark.core.oidc_routes._get_oidc_client")
+    def test_omits_id_token_hint_when_none(self, mock_get_client, mock_config, app):
+        from shelfmark.core.oidc_routes import build_oidc_logout_url
+
+        mock_config.side_effect = _config_getter(MOCK_OIDC_CONFIG)
+        fake_client = Mock()
+        fake_client.load_server_metadata.return_value = {
+            "end_session_endpoint": "https://auth.example.com/logout"
+        }
+        mock_get_client.return_value = (fake_client, MOCK_OIDC_CONFIG)
+
+        with app.test_request_context("/"):
+            logout_url = build_oidc_logout_url(None)
+
+        assert logout_url is not None
+        params = parse_qs(urlparse(logout_url).query)
+        assert "id_token_hint" not in params
+
+    @patch("shelfmark.core.oidc_routes.app_config.get")
+    @patch("shelfmark.core.oidc_routes._get_oidc_client")
+    def test_uses_configured_redirect_base_url(self, mock_get_client, mock_config, app):
+        from shelfmark.core.oidc_routes import build_oidc_logout_url
+
+        config = {**MOCK_OIDC_CONFIG, "OIDC_REDIRECT_BASE_URL": "https://litfinder.example.com"}
+        mock_config.side_effect = _config_getter(config)
+        fake_client = Mock()
+        fake_client.load_server_metadata.return_value = {
+            "end_session_endpoint": "https://auth.example.com/logout"
+        }
+        mock_get_client.return_value = (fake_client, config)
+
+        with app.test_request_context("/"):
+            logout_url = build_oidc_logout_url(None)
+
+        params = parse_qs(urlparse(logout_url).query)
+        assert params["post_logout_redirect_uri"] == ["https://litfinder.example.com"]

@@ -2393,12 +2393,22 @@ def api_logout() -> Response | tuple[Response, int]:
         auth_mode = get_auth_mode()
         ip_address = get_client_ip()
         username = session.get("user_id", "unknown")
+        oidc_id_token = session.get("oidc_id_token") if auth_mode == "oidc" else None
         session.clear()
         logger.info("Logout successful for user '%s' from IP %s", username, ip_address)
 
         # For proxy auth, include logout URL if configured
         if auth_mode == "proxy":
             logout_url = app_config.get("PROXY_AUTH_LOGOUT_URL", "")
+            if logout_url:
+                return jsonify({"success": True, "logout_url": logout_url})
+
+        # For OIDC, end the IdP's SSO session too (RP-Initiated Logout), otherwise
+        # the next login silently re-authenticates instead of prompting (#4).
+        if auth_mode == "oidc":
+            from shelfmark.core.oidc_routes import build_oidc_logout_url
+
+            logout_url = build_oidc_logout_url(oidc_id_token)
             if logout_url:
                 return jsonify({"success": True, "logout_url": logout_url})
 

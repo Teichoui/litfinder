@@ -220,6 +220,48 @@ class TestLoginSemantics:
             assert "db_user_id" not in sess
             assert "is_admin" not in sess
 
+    def test_logout_oidc_includes_idp_logout_url_and_clears_session(self, main_module, client):
+        """OIDC logout must end the IdP's SSO session (RP-Initiated Logout), or the
+        next login silently re-authenticates instead of prompting for credentials
+        (#4)."""
+        with client.session_transaction() as sess:
+            sess["user_id"] = "alice"
+            sess["db_user_id"] = 1
+            sess["is_admin"] = False
+            sess["oidc_id_token"] = "stashed-id-token"
+
+        with patch.object(main_module, "get_auth_mode", return_value="oidc"):
+            with patch(
+                "shelfmark.core.oidc_routes.build_oidc_logout_url",
+                return_value="https://auth.example.com/logout?id_token_hint=stashed-id-token",
+            ) as mock_build:
+                response = client.post("/api/auth/logout")
+
+        mock_build.assert_called_once_with("stashed-id-token")
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "success": True,
+            "logout_url": "https://auth.example.com/logout?id_token_hint=stashed-id-token",
+        }
+        with client.session_transaction() as sess:
+            assert "user_id" not in sess
+            assert "oidc_id_token" not in sess
+
+    def test_logout_oidc_without_idp_logout_support_still_clears_session(
+        self, main_module, client
+    ):
+        with client.session_transaction() as sess:
+            sess["user_id"] = "alice"
+
+        with patch.object(main_module, "get_auth_mode", return_value="oidc"):
+            with patch("shelfmark.core.oidc_routes.build_oidc_logout_url", return_value=None):
+                response = client.post("/api/auth/logout")
+
+        assert response.status_code == 200
+        assert response.get_json() == {"success": True}
+        with client.session_transaction() as sess:
+            assert "user_id" not in sess
+
 
 class TestKavitaLogin:
     def test_kavita_local_source_uses_db_password(
