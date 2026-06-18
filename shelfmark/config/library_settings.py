@@ -9,6 +9,7 @@ configured integration.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from shelfmark.core.config import config as app_config
@@ -84,17 +85,39 @@ def _import_abs_libraries(current_values: dict[str, Any]) -> dict[str, Any]:
     save_config_file("library_folders", {"LIBRARY_FOLDERS": merged})
     app_config.refresh(force=True)
 
-    details = [f"{f['name']} -> {f['path']}" for f in imported]
+    # Audiobookshelf reports paths from its own filesystem, which only resolve here if
+    # the same folders are mounted into the LitFinder container. Flag the ones that
+    # aren't visible so a "successful" import doesn't quietly produce broken entries.
+    details = []
+    missing = 0
+    for f in imported:
+        if Path(f["path"]).is_dir():
+            details.append(f"✓ {f['name']} -> {f['path']}")
+        else:
+            details.append(
+                f"⚠ {f['name']} -> {f['path']} (not visible to LitFinder)"
+            )
+            missing += 1
+
+    warning = ""
+    if missing:
+        warning = (
+            f" Heads up: {missing} of these folder path{'s' if missing != 1 else ''} "
+            "don't exist inside the LitFinder container — make sure your Docker volume "
+            "mounts give LitFinder the same folders, at the same paths, as Audiobookshelf."
+        )
+
     if added == 0:
         return {
             "success": True,
-            "message": "Your Audiobookshelf libraries are already listed — nothing new to add.",
+            "message": "Your Audiobookshelf libraries are already listed — nothing new to add." + warning,
             "details": details,
         }
     return {
         "success": True,
         "message": (
             f"Imported {added} librar{'y' if added == 1 else 'ies'} — reload the page to see them."
+            + warning
         ),
         "details": details,
     }

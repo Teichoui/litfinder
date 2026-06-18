@@ -89,9 +89,14 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const newFolderInputRef = useRef<HTMLInputElement>(null);
+
   const navigateTo = useCallback(async (target: string) => {
     setLoading(true);
     setError('');
+    setCreatingFolder(false);
     try {
       const data = await listDirectory(target);
       setPath(data.path);
@@ -102,6 +107,30 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
       setLoading(false);
     }
   }, []);
+
+  const activateNewFolder = useCallback(() => {
+    setCreatingFolder(true);
+    setNewFolderName('');
+    setTimeout(() => newFolderInputRef.current?.focus(), 0);
+  }, []);
+
+  const commitNewFolder = useCallback(async () => {
+    const name = newFolderName.trim();
+    if (!name) { setCreatingFolder(false); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const result = await makeDirectory(path, name);
+      setCreatingFolder(false);
+      setNewFolderName('');
+      // Jump straight into the new folder so "Move here" is one click away.
+      await navigateTo(result.path);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create folder');
+      setCreatingFolder(false);
+      setLoading(false);
+    }
+  }, [path, newFolderName, navigateTo]);
 
   const crumbs = useMemo(() => {
     if (!path) return [];
@@ -155,6 +184,15 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
           ))}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {path && !creatingFolder && (
+            <button
+              onClick={activateNewFolder}
+              className="hover-action h-7 w-7 flex items-center justify-center rounded-full flex-shrink-0"
+              title="Create new folder here"
+            >
+              <FolderPlusIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
           {path && (
             <button
               onClick={() => onConfirm(path)}
@@ -177,6 +215,23 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
         {error && (
           <div className="px-4 py-2 text-xs text-red-700 dark:text-red-400">{error}</div>
         )}
+        {creatingFolder && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-sky-50/30 dark:bg-sky-900/10 border-b border-(--border-muted)">
+            <FolderIcon className="h-4 w-4 flex-shrink-0 text-amber-500 dark:text-amber-400" />
+            <input
+              ref={newFolderInputRef}
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void commitNewFolder();
+                if (e.key === 'Escape') setCreatingFolder(false);
+              }}
+              onBlur={() => void commitNewFolder()}
+              placeholder="New folder name"
+              className="text-sm bg-transparent border-b border-sky-500 outline-none flex-1 pb-0.5"
+            />
+          </div>
+        )}
         {!path ? (
           <ul className="divide-y divide-[color-mix(in_srgb,var(--border-muted)_60%,transparent)]">
             {libraryFolders.map((f) => (
@@ -196,7 +251,7 @@ const MovePicker = ({ libraryFolders, count, onConfirm, onCancel }: MovePickerPr
           <div className="flex items-center justify-center h-32 text-xs opacity-40">Loading…</div>
         ) : entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2">
-            <p className="text-xs opacity-50">No subfolders — move here?</p>
+            <p className="text-xs opacity-50">No subfolders — move here, or create a new one above</p>
             <button
               onClick={() => onConfirm(path)}
               className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors"
@@ -246,6 +301,11 @@ export const FileExplorer = () => {
   const [newFolderName, setNewFolderName] = useState('');
   const newFolderInputRef = useRef<HTMLInputElement>(null);
 
+  // Anchor for shift-click range selection: index of the last row clicked
+  // (not via checkbox), so "click first, shift+click last" selects everything
+  // between them in one extra click instead of one click per item.
+  const lastClickedIndexRef = useRef<number | null>(null);
+
   // ── data loading ──────────────────────────────────────────────────────────
 
   const loadRoots = useCallback(async () => {
@@ -265,6 +325,7 @@ export const FileExplorer = () => {
     setLoading(true);
     setError('');
     setSelected(new Set());
+    lastClickedIndexRef.current = null;
     setRenamingPath('');
     setNewFolderActive(false);
     try {
@@ -309,24 +370,43 @@ export const FileExplorer = () => {
 
   // ── selection ─────────────────────────────────────────────────────────────
 
-  const toggleSelect = useCallback((path: string, multi: boolean) => {
+  // Always-additive toggle, used by the per-row checkbox (no modifier needed).
+  const toggleSelect = useCallback((path: string, index: number) => {
+    lastClickedIndexRef.current = index;
     setSelected((prev) => {
       const next = new Set(prev);
-      if (multi) {
-        next.has(path) ? next.delete(path) : next.add(path);
-      } else {
-        if (next.size === 1 && next.has(path)) {
-          next.clear();
-        } else {
-          next.clear();
-          next.add(path);
-        }
-      }
+      next.has(path) ? next.delete(path) : next.add(path);
       return next;
     });
   }, []);
 
+  // Row click: plain click selects just that row, ctrl/cmd+click toggles it
+  // into/out of the selection, shift+click selects the whole range from the
+  // last clicked row to this one.
+  const selectRow = useCallback(
+    (path: string, index: number, modifiers: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => {
+      if (modifiers.shiftKey && lastClickedIndexRef.current !== null) {
+        const start = Math.min(lastClickedIndexRef.current, index);
+        const end = Math.max(lastClickedIndexRef.current, index);
+        setSelected(new Set(entries.slice(start, end + 1).map((e) => e.path)));
+        return;
+      }
+      lastClickedIndexRef.current = index;
+      if (modifiers.metaKey || modifiers.ctrlKey) {
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.has(path) ? next.delete(path) : next.add(path);
+          return next;
+        });
+        return;
+      }
+      setSelected((prev) => (prev.size === 1 && prev.has(path) ? new Set() : new Set([path])));
+    },
+    [entries],
+  );
+
   const selectAll = useCallback(() => {
+    lastClickedIndexRef.current = null;
     setSelected((prev) =>
       prev.size === entries.length ? new Set() : new Set(entries.map((e) => e.path)),
     );
@@ -623,19 +703,19 @@ export const FileExplorer = () => {
                     </tr>
                   )}
 
-                  {entries.map((entry) => {
+                  {entries.map((entry, index) => {
                     const isSelected = selected.has(entry.path);
                     const isRenaming = renamingPath === entry.path;
 
                     return (
                       <tr
                         key={entry.path}
-                        className={`hover-row cursor-pointer transition-colors ${
+                        className={`hover-row cursor-pointer transition-colors select-none ${
                           isSelected ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''
                         }`}
                         onClick={(e) => {
                           if (isRenaming) return;
-                          toggleSelect(entry.path, e.metaKey || e.ctrlKey || e.shiftKey);
+                          selectRow(entry.path, index, e);
                         }}
                         onDoubleClick={(e) => {
                           if (isRenaming) return;
@@ -651,7 +731,7 @@ export const FileExplorer = () => {
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() => toggleSelect(entry.path, true)}
+                            onChange={() => toggleSelect(entry.path, index)}
                             onClick={(e) => e.stopPropagation()}
                             className="rounded border-zinc-300 dark:border-zinc-600 text-emerald-600 focus:ring-emerald-500"
                           />
