@@ -4,6 +4,7 @@ import { useSearchMode } from '../contexts/SearchModeContext';
 import type { Book, ButtonStateInfo } from '../types';
 import { BookDownloadButton } from './BookDownloadButton';
 import { BookGetButton } from './BookGetButton';
+import { BookInLibraryButton } from './BookInLibraryButton';
 
 type ButtonSize = 'sm' | 'md';
 type ButtonVariant = 'default' | 'icon';
@@ -34,6 +35,27 @@ export function BookActionButton({
   style,
 }: BookActionButtonProps) {
   const { searchMode } = useSearchMode();
+
+  // When the item is already in the user's library (ebook in Kavita or audiobook
+  // in Audiobookshelf), replace the idle Get/Download control with a disabled
+  // "In Library" button. Active states (queued/downloading/complete/error) still
+  // show the real button so in-flight downloads remain visible.
+  const isOwned =
+    (Boolean(book.kavita_available) || Boolean(book.abs_available)) &&
+    buttonState.state === 'download';
+
+  if (isOwned) {
+    return (
+      <BookInLibraryButton
+        title={book.title}
+        size={size}
+        variant={variant}
+        fullWidth={fullWidth}
+        className={className}
+        style={style}
+      />
+    );
+  }
 
   if (searchMode === 'universal') {
     return (

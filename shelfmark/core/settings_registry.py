@@ -563,6 +563,7 @@ def sync_env_to_config() -> None:
         existing_install=had_existing_install_state,
         had_existing_value=had_existing_search_page_title,
     )
+    migrate_library_folders()
 
 
 def migrate_direct_download_upgrade(*, existing_install: bool) -> None:
@@ -587,6 +588,80 @@ def migrate_search_page_title(*, existing_install: bool, had_existing_value: boo
         return
 
     save_config_file("general", {"SEARCH_PAGE_TITLE": "Book Search & Download"})
+
+
+def _remove_config_keys(tab_name: str, keys: list[str]) -> None:
+    """Delete keys from a tab's config file, rewriting it if anything changed."""
+    existing = load_config_file(tab_name)
+    if not any(key in existing for key in keys):
+        return
+    for key in keys:
+        existing.pop(key, None)
+    try:
+        _ensure_config_dir(tab_name)
+        config_path = _get_config_file_path(tab_name)
+        with config_path.open("w") as f:
+            json.dump(existing, f, indent=2)
+    except OSError:
+        logger.exception("Failed to prune legacy keys from %s config", tab_name)
+
+
+def migrate_library_folders() -> None:
+    """Consolidate library folders into the dedicated 'library_folders' tab.
+
+    Earlier builds stored the library-folder list (and a second Audiobookshelf
+    URL/API key used only for importing) inside the 'download_sources' tab, and
+    the import button wrote folders to the 'downloads' tab. The list now lives in
+    one place — the dedicated 'library_folders' tab — and imports reuse the main
+    Audiobookshelf connection. Merge any legacy values forward and drop the stale
+    copies so there is a single source of truth.
+    """
+
+    def _as_folder_list(value: object) -> list[dict[str, Any]]:
+        if not isinstance(value, list):
+            return []
+        return [
+            item
+            for item in value
+            if isinstance(item, dict) and (item.get("name") or item.get("path"))
+        ]
+
+    target = load_config_file("library_folders")
+    merged = _as_folder_list(target.get("LIBRARY_FOLDERS"))
+    original_count = len(merged)
+    seen = {
+        (str(f.get("name", "")).strip(), str(f.get("path", "")).strip()) for f in merged
+    }
+
+    for legacy_tab in ("download_sources", "downloads"):
+        for folder in _as_folder_list(load_config_file(legacy_tab).get("LIBRARY_FOLDERS")):
+            key = (str(folder.get("name", "")).strip(), str(folder.get("path", "")).strip())
+            if key not in seen:
+                seen.add(key)
+                merged.append(folder)
+
+    if len(merged) != original_count:
+        save_config_file("library_folders", {"LIBRARY_FOLDERS": merged})
+
+    # Preserve the old import credentials by folding them into the main
+    # Audiobookshelf connection when that hasn't been configured yet.
+    abs_config = load_config_file("audiobookshelf")
+    legacy_sources = load_config_file("download_sources")
+    abs_updates: dict[str, Any] = {}
+    legacy_url = str(legacy_sources.get("AUDIOBOOKSHELF_URL") or "").strip()
+    legacy_key = str(legacy_sources.get("AUDIOBOOKSHELF_API_KEY") or "").strip()
+    if legacy_url and not str(abs_config.get("ABS_URL") or "").strip():
+        abs_updates["ABS_URL"] = legacy_url
+    if legacy_key and not str(abs_config.get("ABS_API_KEY") or "").strip():
+        abs_updates["ABS_API_KEY"] = legacy_key
+    if abs_updates:
+        save_config_file("audiobookshelf", abs_updates)
+
+    _remove_config_keys(
+        "download_sources",
+        ["LIBRARY_FOLDERS", "AUDIOBOOKSHELF_URL", "AUDIOBOOKSHELF_API_KEY"],
+    )
+    _remove_config_keys("downloads", ["LIBRARY_FOLDERS"])
 
 
 def migrate_mirror_settings() -> None:
