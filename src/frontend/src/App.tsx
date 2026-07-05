@@ -19,6 +19,7 @@ import { SearchSection } from './components/SearchSection';
 import { SelfSettingsModal, SettingsModal } from './components/settings';
 import { ToastContainer } from './components/ToastContainer';
 import { UrlSearchBootstrapMount } from './components/UrlSearchBootstrapMount';
+import { WatchlistModal } from './components/watchlist';
 import { SearchModeProvider } from './contexts/SearchModeContext';
 import { useSocket } from './contexts/SocketContext';
 import { DEFAULT_LANGUAGES, DEFAULT_SUPPORTED_FORMATS } from './data/languages';
@@ -687,6 +688,14 @@ function App() {
     setLibraryManagerOpen(false);
   }, []);
 
+  const handleWatchlistClick = useCallback(() => {
+    setWatchlistOpen(true);
+  }, []);
+
+  const handleWatchlistClose = useCallback(() => {
+    setWatchlistOpen(false);
+  }, []);
+
   const headerRef = useCallback((el: HTMLDivElement | null) => {
     if (headerObserverRef.current) {
       headerObserverRef.current.disconnect();
@@ -703,6 +712,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selfSettingsOpen, setSelfSettingsOpen] = useState(false);
   const [libraryManagerOpen, setLibraryManagerOpen] = useState(false);
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
   const [configBannerOpen, setConfigBannerOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   useShowOnboardingDebug({
@@ -2406,6 +2416,7 @@ function App() {
           onDownloadsClick={toggleDownloadsSidebar}
           onSettingsClick={handleSettingsClick}
           onLibraryManagerClick={authIsAdmin ? handleLibraryManagerClick : undefined}
+          onWatchlistClick={isAuthenticated ? handleWatchlistClick : undefined}
           isAdmin={requestRoleIsAdmin}
           canAccessSettings={isAuthenticated}
           username={username}
@@ -2733,6 +2744,12 @@ function App() {
       />
 
       <LibraryManagerModal isOpen={libraryManagerOpen} onClose={handleLibraryManagerClose} />
+
+      <WatchlistModal
+        isOpen={watchlistOpen}
+        onClose={handleWatchlistClose}
+        showToast={showToast}
+      />
 
       {/* Auto-show banner on startup for users without config */}
       {config && <ConfigSetupBanner settingsEnabled={config.settings_enabled} />}

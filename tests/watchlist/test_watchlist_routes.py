@@ -30,6 +30,28 @@ class RecordingWatchlistDB:
         return [{"id": 10, "user_id": user_id, "author_name": "No Auth Author"}]
 
 
+class FakeReleaseWatchlistDB:
+    """Fake DB backing the release-action endpoint tests."""
+
+    def __init__(self, releases: dict[int, dict[str, Any]]) -> None:
+        self._releases = releases
+        self.updated: list[tuple[int, str]] = []
+
+    def get_release(self, release_id: int) -> dict[str, Any] | None:
+        return self._releases.get(release_id)
+
+    def update_release_action(
+        self, release_id: int, *, action_status: str, request_id: int | None = None
+    ) -> dict[str, Any] | None:
+        self.updated.append((release_id, action_status))
+        release = self._releases.get(release_id)
+        if release is None:
+            return None
+        release = {**release, "action_status": action_status}
+        self._releases[release_id] = release
+        return release
+
+
 class FakeUserDB:
     def __init__(self) -> None:
         self.users_by_username: dict[str, dict[str, Any]] = {}
@@ -121,6 +143,82 @@ def test_auth_mode_still_requires_session():
 
     with flask_app.test_client() as client:
         response = client.get("/api/watchlist/authors")
+
+    assert response.status_code == 401
+    assert response.json == {"error": "Not authenticated"}
+
+
+def _release_app(releases: dict[int, dict[str, Any]]) -> tuple[Flask, FakeReleaseWatchlistDB]:
+    flask_app = Flask(__name__)
+    flask_app.secret_key = "test"
+    flask_app.register_blueprint(watchlist_bp)
+    watchlist_db = FakeReleaseWatchlistDB(releases)
+    init_watchlist_routes(watchlist_db)  # pyright: ignore[reportArgumentType]
+    return flask_app, watchlist_db
+
+
+def test_update_release_action_succeeds_for_owner():
+    flask_app, watchlist_db = _release_app(
+        {5: {"id": 5, "user_id": 1, "action_status": "detected"}}
+    )
+
+    with flask_app.test_client() as client:
+        with client.session_transaction() as session:
+            session["db_user_id"] = 1
+        response = client.patch("/api/watchlist/releases/5", json={"action_status": "skipped"})
+
+    assert response.status_code == 200
+    assert response.json["action_status"] == "skipped"
+    assert watchlist_db.updated == [(5, "skipped")]
+
+
+def test_update_release_action_rejects_other_users_release():
+    flask_app, watchlist_db = _release_app(
+        {5: {"id": 5, "user_id": 2, "action_status": "detected"}}
+    )
+
+    with flask_app.test_client() as client:
+        with client.session_transaction() as session:
+            session["db_user_id"] = 1
+        response = client.patch("/api/watchlist/releases/5", json={"action_status": "skipped"})
+
+    assert response.status_code == 403
+    assert response.json == {"error": "Forbidden"}
+    assert watchlist_db.updated == []
+
+
+def test_update_release_action_404s_for_missing_release():
+    flask_app, _ = _release_app({})
+
+    with flask_app.test_client() as client:
+        with client.session_transaction() as session:
+            session["db_user_id"] = 1
+        response = client.patch("/api/watchlist/releases/999", json={"action_status": "skipped"})
+
+    assert response.status_code == 404
+    assert response.json == {"error": "Release not found"}
+
+
+def test_update_release_action_rejects_invalid_status():
+    flask_app, watchlist_db = _release_app(
+        {5: {"id": 5, "user_id": 1, "action_status": "detected"}}
+    )
+
+    with flask_app.test_client() as client:
+        with client.session_transaction() as session:
+            session["db_user_id"] = 1
+        response = client.patch("/api/watchlist/releases/5", json={"action_status": "bogus"})
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Invalid action_status"}
+    assert watchlist_db.updated == []
+
+
+def test_update_release_action_requires_authentication():
+    flask_app, _ = _release_app({5: {"id": 5, "user_id": 1, "action_status": "detected"}})
+
+    with flask_app.test_client() as client:
+        response = client.patch("/api/watchlist/releases/5", json={"action_status": "skipped"})
 
     assert response.status_code == 401
     assert response.json == {"error": "Not authenticated"}

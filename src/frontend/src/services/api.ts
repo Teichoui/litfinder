@@ -12,6 +12,9 @@ import type {
   RequestSubmissionResult,
   MetadataProvidersResponse,
   MetadataSearchConfig,
+  WatchlistActionStatus,
+  WatchlistAuthor,
+  WatchlistRelease,
 } from '../types';
 import type {
   ActionResult,
@@ -66,6 +69,8 @@ const API = {
   libraryLs: `${API_BASE}/library/ls`,
   libraryRename: `${API_BASE}/library/rename`,
   libraryMkdir: `${API_BASE}/library/mkdir`,
+  watchlistAuthors: `${API_BASE}/watchlist/authors`,
+  watchlistReleases: `${API_BASE}/watchlist/releases`,
 };
 
 // Custom error class for authentication failures
@@ -386,6 +391,59 @@ export const fetchFieldOptions = async (
     group,
     description,
   }));
+};
+
+export const fetchWatchlistAuthors = async (): Promise<WatchlistAuthor[]> => {
+  return fetchJSON<WatchlistAuthor[]>(API.watchlistAuthors);
+};
+
+export const addWatchlistAuthor = async (payload: {
+  author_name: string;
+  hardcover_author_id?: string;
+  ol_author_key?: string;
+  watch_content_types?: string[];
+}): Promise<WatchlistAuthor> => {
+  return fetchJSON<WatchlistAuthor>(API.watchlistAuthors, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const removeWatchlistAuthor = async (watchId: number): Promise<void> => {
+  await fetchJSON(`${API.watchlistAuthors}/${watchId}`, { method: 'DELETE' });
+};
+
+export const updateWatchlistAuthor = async (
+  watchId: number,
+  payload: { is_active?: boolean; watch_content_types?: string[]; author_name?: string },
+): Promise<WatchlistAuthor> => {
+  return fetchJSON<WatchlistAuthor>(`${API.watchlistAuthors}/${watchId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const fetchWatchlistReleases = async (
+  actionStatus?: WatchlistActionStatus,
+): Promise<WatchlistRelease[]> => {
+  const params = new URLSearchParams();
+  if (actionStatus) {
+    params.set('action_status', actionStatus);
+  }
+  const query = params.toString();
+  return fetchJSON<WatchlistRelease[]>(
+    query ? `${API.watchlistReleases}?${query}` : API.watchlistReleases,
+  );
+};
+
+export const updateWatchlistRelease = async (
+  releaseId: number,
+  actionStatus: WatchlistActionStatus,
+): Promise<WatchlistRelease> => {
+  return fetchJSON<WatchlistRelease>(`${API.watchlistReleases}/${releaseId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action_status: actionStatus }),
+  });
 };
 
 const parseBaseOption = (

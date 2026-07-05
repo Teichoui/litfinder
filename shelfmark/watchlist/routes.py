@@ -268,3 +268,36 @@ def list_releases() -> Any:
         return _error("Unable to list watchlist releases")
 
     return jsonify(releases)
+
+
+@watchlist_bp.patch("/releases/<int:release_id>")
+def update_release(release_id: int) -> Any:
+    """PATCH /api/watchlist/releases/<id> — mark a detected release queued/skipped/ignored."""
+    user_id = _get_current_user_id()
+    if user_id is None:
+        return _error("Not authenticated", 401)
+
+    entry = _get_db().get_release(release_id)
+    if entry is None:
+        return _error("Release not found", 404)
+    if entry["user_id"] != user_id:
+        return _error("Forbidden", 403)
+
+    body = request.get_json(silent=True)
+    if not body:
+        return _error("Request body must be JSON")
+
+    action_status = body.get("action_status")
+    if action_status not in _VALID_ACTION_STATUSES:
+        return _error("Invalid action_status")
+
+    try:
+        updated = _get_db().update_release_action(release_id, action_status=action_status)
+    except ValueError as e:
+        logger.warning("Failed to update watchlist release %s: %s", release_id, e)
+        return _error("Unable to update release")
+
+    if updated is None:
+        return _error("Release not found", 404)
+
+    return jsonify(updated)

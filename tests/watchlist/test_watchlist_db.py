@@ -501,6 +501,19 @@ class TestReleasesQueryAndUpdate:
         with pytest.raises(ValueError, match="action_status"):
             wdb.update_release_action(r["id"], action_status="purchased")
 
+    def test_get_release_returns_matching_row(self, test_user):
+        user, wdb = test_user
+        entry = wdb.add_author(user_id=user["id"], author_name="Author", hardcover_author_id="204")
+        r = self._add_release(wdb, entry["id"], user["id"], "book-f")
+        fetched = wdb.get_release(r["id"])
+        assert fetched is not None
+        assert fetched["id"] == r["id"]
+        assert fetched["user_id"] == user["id"]
+
+    def test_get_release_returns_none_when_missing(self, test_user):
+        _user, wdb = test_user
+        assert wdb.get_release(999999) is None
+
 
 # ------------------------------------------------------------------
 # Cascade on user delete

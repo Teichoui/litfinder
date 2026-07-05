@@ -500,3 +500,38 @@ export interface SearchStatusData {
   message: string; // Human-readable status message
   phase: 'connecting' | 'searching' | 'downloading' | 'parsing' | 'complete' | 'error';
 }
+
+export interface WatchlistAuthor {
+  id: number;
+  user_id: number;
+  author_name: string;
+  hardcover_author_id: string | null;
+  ol_author_key: string | null;
+  watch_content_types: string[];
+  // The API returns SQLite's raw 0/1 for this column rather than a JSON boolean.
+  is_active: boolean | 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WatchlistActionStatus = 'detected' | 'queued' | 'skipped' | 'ignored';
+
+export interface WatchlistRelease {
+  id: number;
+  watch_id: number;
+  user_id: number;
+  provider: string;
+  provider_book_id: string;
+  book_data: {
+    title?: string;
+    author?: string;
+    cover_url?: string;
+    [key: string]: unknown;
+  };
+  publish_date: string | null;
+  content_type: string;
+  action_status: WatchlistActionStatus;
+  request_id: number | null;
+  detected_at: string;
+  actioned_at: string | null;
+}
