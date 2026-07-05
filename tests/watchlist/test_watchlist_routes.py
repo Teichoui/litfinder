@@ -214,6 +214,25 @@ def test_update_release_action_rejects_invalid_status():
     assert watchlist_db.updated == []
 
 
+@pytest.mark.parametrize("action_status", ["queued", "detected"])
+def test_update_release_action_rejects_non_user_actions(action_status):
+    """queued/detected aren't valid direct user actions on this endpoint — queued
+    belongs to whatever eventually creates the download request, and detected is
+    the initial state, not something to transition back into."""
+    flask_app, watchlist_db = _release_app(
+        {5: {"id": 5, "user_id": 1, "action_status": "detected"}}
+    )
+
+    with flask_app.test_client() as client:
+        with client.session_transaction() as session:
+            session["db_user_id"] = 1
+        response = client.patch("/api/watchlist/releases/5", json={"action_status": action_status})
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Invalid action_status"}
+    assert watchlist_db.updated == []
+
+
 def test_update_release_action_requires_authentication():
     flask_app, _ = _release_app({5: {"id": 5, "user_id": 1, "action_status": "detected"}})
 

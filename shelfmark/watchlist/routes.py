@@ -19,6 +19,10 @@ logger = setup_logger(__name__)
 watchlist_bp = Blueprint("watchlist", __name__, url_prefix="/api/watchlist")
 _VALID_WATCH_CONTENT_TYPES = {"ebook", "audiobook"}
 _VALID_ACTION_STATUSES = {"detected", "queued", "skipped", "ignored"}
+# "queued" is only meaningful alongside the request it names — it's set by whatever
+# eventually triggers a download for a detected release, not by this direct user
+# action endpoint, which only ever skips or ignores.
+_USER_RELEASE_ACTIONS = {"skipped", "ignored"}
 _NO_AUTH_WATCHLIST_USERNAME = "__no_auth_watchlist__"
 
 # Populated by init_watchlist_routes()
@@ -272,7 +276,7 @@ def list_releases() -> Any:
 
 @watchlist_bp.patch("/releases/<int:release_id>")
 def update_release(release_id: int) -> Any:
-    """PATCH /api/watchlist/releases/<id> — mark a detected release queued/skipped/ignored."""
+    """PATCH /api/watchlist/releases/<id> — mark a detected release skipped or ignored."""
     user_id = _get_current_user_id()
     if user_id is None:
         return _error("Not authenticated", 401)
@@ -288,7 +292,7 @@ def update_release(release_id: int) -> Any:
         return _error("Request body must be JSON")
 
     action_status = body.get("action_status")
-    if action_status not in _VALID_ACTION_STATUSES:
+    if action_status not in _USER_RELEASE_ACTIONS:
         return _error("Invalid action_status")
 
     try:

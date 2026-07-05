@@ -394,7 +394,7 @@ export const fetchFieldOptions = async (
 };
 
 export const fetchWatchlistAuthors = async (): Promise<WatchlistAuthor[]> => {
-  return fetchJSON<WatchlistAuthor[]>(API.watchlistAuthors);
+  return fetchJSON<WatchlistAuthor[]>(`${API.watchlistAuthors}?include_inactive=true`);
 };
 
 export const addWatchlistAuthor = async (payload: {

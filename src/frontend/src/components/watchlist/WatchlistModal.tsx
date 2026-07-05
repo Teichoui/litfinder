@@ -8,6 +8,7 @@ import {
   fetchFieldOptions,
   fetchWatchlistAuthors,
   fetchWatchlistReleases,
+  getMetadataProviders,
   removeWatchlistAuthor,
   updateWatchlistAuthor,
   updateWatchlistRelease,
@@ -38,17 +39,22 @@ export const WatchlistModal = ({ isOpen, onClose, showToast }: WatchlistModalPro
   const [authorQuery, setAuthorQuery] = useState('');
   const [authorOptions, setAuthorOptions] = useState<DynamicFieldOption[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [hardcoverAvailable, setHardcoverAvailable] = useState(true);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [authorsResult, releasesResult] = await Promise.all([
+      const [authorsResult, releasesResult, providersResult] = await Promise.all([
         fetchWatchlistAuthors(),
-        fetchWatchlistReleases(),
+        fetchWatchlistReleases('detected'),
+        getMetadataProviders(),
       ]);
       setAuthors(authorsResult);
       setReleases(releasesResult);
+      setHardcoverAvailable(
+        providersResult.providers.some((p) => p.name === 'hardcover' && p.available),
+      );
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to load watchlist', 'error');
     } finally {
@@ -65,21 +71,23 @@ export const WatchlistModal = ({ isOpen, onClose, showToast }: WatchlistModalPro
   useDependencyEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const query = authorQuery.trim();
-    if (query.length < AUTHOR_SEARCH_MIN_LENGTH) {
+    if (!hardcoverAvailable || query.length < AUTHOR_SEARCH_MIN_LENGTH) {
       setAuthorOptions([]);
       return () => {
         debounceRef.current = null;
       };
     }
     debounceRef.current = setTimeout(() => {
-      void fetchFieldOptions('/api/metadata/field-options?field=author', query)
+      // Explicitly target Hardcover regardless of the globally configured metadata
+      // provider — added authors are always keyed by hardcover_author_id below.
+      void fetchFieldOptions('/api/metadata/field-options?field=author&provider=hardcover', query)
         .then(setAuthorOptions)
         .catch(() => setAuthorOptions([]));
     }, AUTHOR_SEARCH_DEBOUNCE_MS);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [authorQuery]);
+  }, [authorQuery, hardcoverAvailable]);
 
   const handleAddAuthor = async (option: DynamicFieldOption) => {
     const hardcoverAuthorId = option.value.startsWith('id:') ? option.value.slice(3) : null;
@@ -126,16 +134,16 @@ export const WatchlistModal = ({ isOpen, onClose, showToast }: WatchlistModalPro
     actionStatus: 'skipped' | 'ignored',
   ) => {
     try {
-      const updated = await updateWatchlistRelease(release.id, actionStatus);
-      setReleases((prev) => prev.map((r) => (r.id === release.id ? updated : r)));
+      await updateWatchlistRelease(release.id, actionStatus);
+      // The list only ever holds detected releases (fetched with action_status=detected),
+      // so once actioned it no longer belongs here.
+      setReleases((prev) => prev.filter((r) => r.id !== release.id));
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to update release', 'error');
     }
   };
 
   if (!isOpen) return null;
-
-  const detectedReleases = releases.filter((r) => r.action_status === 'detected');
 
   return (
     <div
@@ -178,10 +186,18 @@ export const WatchlistModal = ({ isOpen, onClose, showToast }: WatchlistModalPro
               type="text"
               value={authorQuery}
               onChange={(e) => setAuthorQuery(e.target.value)}
-              disabled={isAdding}
-              placeholder="Search by author name…"
-              className="w-full rounded-lg border border-(--border-muted) bg-(--bg-subtle) px-3 py-2 text-sm outline-hidden focus:border-emerald-500"
+              disabled={isAdding || !hardcoverAvailable}
+              placeholder={
+                hardcoverAvailable ? 'Search by author name…' : 'Hardcover is not available'
+              }
+              className="w-full rounded-lg border border-(--border-muted) bg-(--bg-subtle) px-3 py-2 text-sm outline-hidden focus:border-emerald-500 disabled:opacity-60"
             />
+            {!hardcoverAvailable && (
+              <p className="mt-1 text-xs text-(--text-muted)">
+                The watchlist looks up authors via Hardcover, which isn't configured or available
+                right now.
+              </p>
+            )}
             {authorOptions.length > 0 && (
               <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-(--border-muted) bg-(--bg) shadow-lg">
                 {authorOptions.map((option) => (
@@ -244,18 +260,18 @@ export const WatchlistModal = ({ isOpen, onClose, showToast }: WatchlistModalPro
           <div>
             <h3 className="mb-2 text-sm font-semibold text-(--text-muted)">
               Detected releases
-              {detectedReleases.length > 0 && ` (${detectedReleases.length})`}
+              {releases.length > 0 && ` (${releases.length})`}
             </h3>
             <p className="mb-3 text-xs text-(--text-muted)">
               New releases from watched authors show up here once detected. This requires a
-              scheduled scan that hasn't been built yet, so this list will stay empty for now
-              even with authors watched.
+              scheduled scan that hasn't been built yet, so this list will stay empty for now even
+              with authors watched.
             </p>
-            {detectedReleases.length === 0 && !isLoading && (
+            {releases.length === 0 && !isLoading && (
               <p className="text-sm text-(--text-muted)">No releases detected yet.</p>
             )}
             <ul className="space-y-2">
-              {detectedReleases.map((release) => (
+              {releases.map((release) => (
                 <li
                   key={release.id}
                   className="flex items-center justify-between rounded-lg border border-(--border-muted) px-3 py-2"
