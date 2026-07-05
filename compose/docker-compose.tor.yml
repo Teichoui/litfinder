@@ -1,7 +1,7 @@
 # Routes all traffic through Tor - requires root startup
 services:
   shelfmark-tor:
-    image: ghcr.io/nemesishubris/litfinder:latest
+    image: ghcr.io/teichoui/litfinder:latest
     environment:
       FLASK_PORT: 8084
       USING_TOR: true

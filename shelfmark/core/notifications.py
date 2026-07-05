@@ -31,7 +31,7 @@ _ROUTE_EVENT_ALL = "all"
 _APPRISE_APP_ID = "LitFinder"
 _APPRISE_APP_DESC = "LitFinder notifications"
 _APPRISE_LOGO_URL = (
-    "https://raw.githubusercontent.com/NemesisHubris/litfinder/main/src/frontend/public/logo.png"
+    "https://raw.githubusercontent.com/Teichoui/litfinder/main/src/frontend/public/logo.png"
 )
 _APPRISE_LOGGER_NAME = "apprise"
 _APPRISE_DISPATCH_ERRORS = (RuntimeError, TypeError, ValueError)
