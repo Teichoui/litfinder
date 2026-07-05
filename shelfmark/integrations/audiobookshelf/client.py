@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from shelfmark.core.logger import setup_logger
+from shelfmark.core.request_helpers import coerce_int
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -234,7 +235,17 @@ def abs_iter_inventory(cfg: AbsConfig, library_ids: list[int]) -> Iterator[dict[
 
         for item in _iter_library_items(cfg, library_id):
             media = item.get("media")
-            metadata = media.get("metadata") if isinstance(media, dict) else None
+            if not isinstance(media, dict):
+                continue
+            # ABS libraries are typed "book" regardless of whether they hold audio or
+            # ebook-only content — an item with no audio tracks isn't an audiobook, even
+            # if it lives in an "audiobooks" library, so don't report it as one.
+            num_tracks = coerce_int(media.get("numTracks"), 0) or coerce_int(
+                media.get("numAudioFiles"), 0
+            )
+            if num_tracks <= 0:
+                continue
+            metadata = media.get("metadata")
             if not isinstance(metadata, dict):
                 continue
             title = str(metadata.get("title") or "").strip()
