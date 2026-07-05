@@ -326,7 +326,7 @@ class TestHardcoverSeriesSearch:
         )
 
         assert "canonical_id: {_is_null: true}" in str(captured["query"])
-        assert 'state: {_in: ["normalized", "normalizing"]}' in str(captured["query"])
+        assert 'state: {_in: ["normalized", "normalizing", "pending"]}' in str(captured["query"])
         assert result.total_found == 2
         assert result.has_more is False
         assert captured["variables"] == {"seriesId": 42}
