@@ -1,6 +1,6 @@
 services:
   shelfmark:
-    image: ghcr.io/nemesishubris/litfinder:latest
+    image: ghcr.io/teichoui/litfinder:latest
     container_name: shelfmark
     environment:
       PUID: 1000
