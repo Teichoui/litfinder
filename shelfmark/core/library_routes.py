@@ -47,6 +47,39 @@ def _allowed_folder_roots() -> set[Path]:
     return roots
 
 
+def _download_destination_roots() -> set[Path]:
+    """Resolved roots of the configured download destinations.
+
+    Completed downloads land here rather than in a library folder, and the
+    activity card's "Send to library" action moves them out of here, so these
+    are valid *source* roots for organize (never valid targets). A destination
+    configured with a {User} placeholder is truncated to the static ancestor
+    above the placeholder so every user's subfolder is covered.
+    """
+    from shelfmark.core.config import config
+
+    raw_values = (
+        config.get("DESTINATION", "") or config.get("INGEST_DIR", ""),
+        config.get("DESTINATION_AUDIOBOOK", ""),
+    )
+    roots: set[Path] = set()
+    for raw in raw_values:
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        parts = Path(text).parts
+        static_parts = []
+        for part in parts:
+            if "{" in part:
+                break
+            static_parts.append(part)
+        if not static_parts:
+            continue
+        with contextlib.suppress(OSError, ValueError):
+            roots.add(Path(*static_parts).resolve())
+    return roots
+
+
 def _is_within_allowed(path: Path, allowed: set[Path]) -> bool:
     """Return True if path is within (or equal to) any allowed directory."""
     if not allowed:
@@ -106,6 +139,11 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
         moved: list[dict[str, str]] = []
         failed: list[dict[str, str]] = []
 
+        # Sources may come from a library folder (file manager) or from a completed
+        # download's destination (activity card "Send to library"). Targets stay
+        # library-only, enforced above.
+        allowed_sources = allowed | _download_destination_roots()
+
         for file_info in files:
             source_path = str(file_info.get("path") or "").strip()
             if not source_path:
@@ -116,9 +154,12 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
                 failed.append({"path": source_path, "error": "File not found"})
                 continue
 
-            if not _is_within_allowed(source, allowed):
+            if not _is_within_allowed(source, allowed_sources):
                 failed.append(
-                    {"path": source_path, "error": "Not within a configured library folder"}
+                    {
+                        "path": source_path,
+                        "error": "Not within a configured library folder or download destination",
+                    }
                 )
                 continue
 
