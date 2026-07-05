@@ -354,7 +354,7 @@ query GetSeriesBooks($seriesId: Int!) {
             where: {
                 book: {
                     canonical_id: {_is_null: true},
-                    state: {_in: ["normalized", "normalizing"]}
+                    state: {_in: ["normalized", "normalizing", "pending"]}
                 }
             }
             order_by: [{position: asc_nulls_last}, {book_id: asc}]
@@ -404,7 +404,7 @@ query GetAuthorBooks($authorId: Int!, $limit: Int!, $offset: Int!) {
                 contributable_type: {_eq: "Book"},
                 book: {
                     canonical_id: {_is_null: true},
-                    state: {_in: ["normalized", "normalizing"]}
+                    state: {_in: ["normalized", "normalizing", "pending"]}
                 }
             },
             order_by: [
@@ -453,7 +453,7 @@ query GetAuthorBooks($authorId: Int!, $limit: Int!, $offset: Int!) {
                 contributable_type: {_eq: "Book"},
                 book: {
                     canonical_id: {_is_null: true},
-                    state: {_in: ["normalized", "normalizing"]}
+                    state: {_in: ["normalized", "normalizing", "pending"]}
                 }
             }
         ) {
