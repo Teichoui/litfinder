@@ -297,13 +297,17 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
             return jsonify({"error": "Parent is not within a configured library folder"}), 403
 
         new_dir = parent / name
-        if new_dir.exists():
+        resolved_new_dir = new_dir.resolve(strict=False)
+        if not _is_within_allowed(resolved_new_dir, allowed):
+            return jsonify({"error": "Target path is not within a configured library folder"}), 403
+
+        if resolved_new_dir.exists():
             return jsonify({"error": "A file or folder with that name already exists"}), 409
 
         try:
-            new_dir.mkdir(parents=False)
+            resolved_new_dir.mkdir(parents=False)
         except OSError as exc:
             return jsonify({"error": f"Failed to create directory: {exc}"}), 500
 
-        logger.info("Created directory: %s", new_dir)
-        return jsonify({"success": True, "path": str(new_dir)})
+        logger.info("Created directory: %s", resolved_new_dir)
+        return jsonify({"success": True, "path": str(resolved_new_dir)})
