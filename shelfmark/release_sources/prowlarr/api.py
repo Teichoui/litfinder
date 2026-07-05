@@ -124,10 +124,11 @@ class ProwlarrClient:
             msg = f"Invalid JSON response: {e}"
             raise ValueError(msg) from e
         except requests.exceptions.HTTPError as e:
+            response = e.response
             logger.exception(
                 "Prowlarr API HTTP error: %s %s",
-                e.response.status_code,
-                e.response.reason,
+                response.status_code if response is not None else "unknown",
+                response.reason if response is not None else "unknown",
             )
             raise
         except requests.exceptions.RequestException:

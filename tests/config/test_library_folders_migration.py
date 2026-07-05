@@ -98,7 +98,7 @@ def test_migrate_library_folders_is_idempotent(monkeypatch, tmp_path):
 
 
 def test_library_folders_is_the_only_canonical_tab():
-    import shelfmark.config.library_settings  # noqa: F401
+    import shelfmark.config.library_settings
     import shelfmark.config.settings  # noqa: F401
     from shelfmark.core.settings_registry import get_settings_field_map, get_settings_tab
 

@@ -893,25 +893,28 @@ export const ActivityCard = ({
                   className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                   value={sendToValue}
                   disabled={sendToStatus === 'loading' || sendToStatus === 'done'}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const dest = e.target.value;
-                    if (!dest) return;
-                    setSendToValue(dest);
-                    setSendToStatus('loading');
-                    setSendToMessage('');
-                    try {
-                      const result = await moveToLibrary(item.downloadBookId!, dest);
-                      if (result.success) {
-                        setSendToStatus('done');
-                        setSendToMessage('Moved');
-                      } else {
+                    const downloadBookId = item.downloadBookId;
+                    if (!dest || !downloadBookId) return;
+                    void (async () => {
+                      setSendToValue(dest);
+                      setSendToStatus('loading');
+                      setSendToMessage('');
+                      try {
+                        const result = await moveToLibrary(downloadBookId, dest);
+                        if (result.success) {
+                          setSendToStatus('done');
+                          setSendToMessage('Moved');
+                        } else {
+                          setSendToStatus('error');
+                          setSendToMessage(result.error ?? 'Failed');
+                        }
+                      } catch {
                         setSendToStatus('error');
-                        setSendToMessage(result.error ?? 'Failed');
+                        setSendToMessage('Failed to move');
                       }
-                    } catch {
-                      setSendToStatus('error');
-                      setSendToMessage('Failed to move');
-                    }
+                    })();
                   }}
                 >
                   <option value="">Send to library…</option>

@@ -286,7 +286,7 @@ def _volume_number(volume: dict[str, Any]) -> float | None:
             continue
         try:
             num = float(raw)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             continue
         if -_VOLUME_SENTINEL < num < _VOLUME_SENTINEL:
             return num
@@ -355,15 +355,17 @@ def kavita_iter_inventory(
         if series_id is None or not series_name:
             continue
         if wanted is not None:
+            if library_id is None:
+                continue
             try:
                 if int(library_id) not in wanted:
                     continue
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 continue
 
         try:
             sid = int(series_id)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             continue
         metadata = _series_metadata(cfg, token, sid)
         author = _writer_names(metadata)

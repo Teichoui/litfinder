@@ -44,7 +44,7 @@ def _get_current_user_id() -> int | None:
         return None
     try:
         return int(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
 
 

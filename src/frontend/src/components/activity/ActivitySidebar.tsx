@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from 'react';
+import { useCallback, useMemo, useRef, useState, type WheelEvent } from 'react';
 
 import { useTabIndicator } from '../../hooks/ui/useTabIndicator';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useMountEffect } from '../../hooks/useMountEffect';
 import type { RequestRecord, StatusData } from '../../types';
 import type { LibraryFolder } from '../../services/api';
 import { fetchLibraryFolders } from '../../services/api';
@@ -274,9 +275,9 @@ export const ActivitySidebar = ({
   const [libraryFolders, setLibraryFolders] = useState<LibraryFolder[]>([]);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    fetchLibraryFolders().then(setLibraryFolders).catch(() => {});
-  }, []);
+  useMountEffect(() => {
+    void fetchLibraryFolders().then(setLibraryFolders).catch(() => undefined);
+  });
   const dismissedKeySet = useMemo(() => new Set(dismissedItemKeys), [dismissedItemKeys]);
   const handleTabChange = useCallback(
     (nextTab: ActivityTabKey) => {

@@ -17,11 +17,13 @@ export const LibraryManagerModal = ({ isOpen, onClose }: LibraryManagerModalProp
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+      role="presentation"
     >
       <div className="relative flex flex-col w-full h-full max-w-6xl max-h-[90vh] mx-4 my-4 bg-(--bg) rounded-2xl shadow-2xl overflow-hidden border border-(--border-muted)">
         <div className="flex items-center justify-between px-5 py-4 border-b border-(--border-muted)">
           <h2 className="text-base font-semibold">Library File Manager</h2>
-          <button
+          <button type="button"
             onClick={onClose}
             className="hover-action h-8 w-8 flex items-center justify-center rounded-full"
             aria-label="Close"

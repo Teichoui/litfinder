@@ -308,13 +308,12 @@ def _extract_distant_path(row: Tag, *, enabled: bool) -> str | None:
     def _normalize_candidate(text: str) -> str:
         normalized = re.sub(r"\s*([\\/])\s*", r"\1", text)
         normalized = re.sub(r":\s*([\\/])", r":\1", normalized)
-        normalized = re.sub(
+        return re.sub(
             r"\s+\.(epub|mobi|azw3|fb2|djvu|cbz|cbr|pdf|zip|rar|m4b|mp3)\b",
             r".\1",
             normalized,
             flags=re.IGNORECASE,
         )
-        return normalized
 
     candidates = [row.get_text(" ", strip=True)]
     for cell in row.find_all("td"):
@@ -399,10 +398,10 @@ def _normalize_requested_languages(languages: list[str] | None) -> set[str]:
     aliases = _language_alias_to_code()
     normalized: set[str] = set()
     for value in languages:
-        token = _normalize_language_token(str(value))
-        if not token or token == "all":
+        language_code = _normalize_language_token(str(value))
+        if not language_code or language_code == "all":
             continue
-        normalized.add(aliases.get(token, token))
+        normalized.add(aliases.get(language_code, language_code))
     return normalized
 
 

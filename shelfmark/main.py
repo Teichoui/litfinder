@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import sqlite3
+import tempfile
 import time
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
@@ -968,7 +969,8 @@ if _is_debug_enabled():
             # Require the output path to be within /tmp to prevent the script's
             # stdout from being used to serve arbitrary filesystem paths.
             debug_resolved = Path(debug_file_path).resolve()
-            if not str(debug_resolved).startswith("/tmp/"):
+            tmp_dir = Path(tempfile.gettempdir()).resolve()
+            if not debug_resolved.is_relative_to(tmp_dir):
                 logger.error("Debug script returned unexpected file path: %s", debug_file_path)
                 return jsonify({"error": "Failed to generate debug information"}), 500
             if not debug_resolved.exists():
@@ -1623,7 +1625,7 @@ def _enrich_queue_status_with_display_names(
                 try:
                     row = db.get_user(user_id=uid_raw)
                     cache[uid_raw] = row.get("display_name") if row else None
-                except Exception:
+                except _OPERATIONAL_ERRORS:
                     cache[uid_raw] = None
             book["display_name"] = cache[uid_raw]
 
@@ -2363,6 +2365,8 @@ def api_login() -> Response | tuple[Response, int]:
                 sync_role=False,
                 context="kavita_login",
             )
+            if db_user is None:
+                return jsonify({"error": "Failed to create Kavita user"}), 500
             session["user_id"] = db_user["username"]
             session["db_user_id"] = db_user["id"]
             session["is_admin"] = db_user["role"] == "admin"

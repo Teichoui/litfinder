@@ -172,7 +172,7 @@ def _on_save_audiobookshelf(values: dict[str, Any]) -> dict[str, Any]:
     if cron is not None and str(cron).strip():
         try:
             validate_cron(str(cron))
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             return {
                 "error": True,
                 "message": f"Invalid cron expression: {cron}",

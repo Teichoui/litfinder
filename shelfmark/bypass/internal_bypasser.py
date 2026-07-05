@@ -1025,9 +1025,14 @@ async def _create_cdp_browser(url: str) -> Any:
     logger.debug("Creating Pure CDP browser with args: %s", browser_args)
     logger.debug("Browser screen size: %sx%s", screen_width, screen_height)
 
+    driver_module = cdp_driver
+    if driver_module is None:
+        msg = "SeleniumBase CDP driver is not available"
+        raise RuntimeError(msg)
+
     try:
         driver = await asyncio.wait_for(
-            cdp_driver.start_async(
+            driver_module.start_async(
                 headless=False,
                 headed=False,
                 xvfb=True,
