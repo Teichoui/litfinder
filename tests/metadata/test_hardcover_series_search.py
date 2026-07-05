@@ -554,10 +554,7 @@ class TestHardcoverSeriesSearch:
         assert result.total_found == 5
         assert result.has_more is False
 
-    def test_fetch_series_books_by_id_keeps_all_books_sharing_a_position(self, monkeypatch):
-        """Two distinct books at the same series position (e.g. a novel and a bundle
-        edition of it) must both appear, with the better-scored one listed first —
-        neither should be silently dropped."""
+    def test_fetch_series_books_by_id_prefers_best_book_per_position(self, monkeypatch):
         provider = HardcoverProvider(api_key="test-token")
 
         monkeypatch.setattr(
@@ -762,12 +759,209 @@ class TestHardcoverSeriesSearch:
             exclude_unreleased=True,
         )
 
-        assert result.total_found == 4
+        assert result.total_found == 3
         assert result.has_more is False
         assert [book.title for book in result.books] == [
             "Sunrise on the Reaping",
             "The Alloy of Law",
-            "Aleación de ley (Wax & Wayne 1): Una novela de Mistborn",
             "Allomancer Jak and the Pits of Eltania",
         ]
-        assert [book.series_position for book in result.books] == [0.5, 4, 4, 4.5]
+        assert [book.series_position for book in result.books] == [0.5, 4, 4.5]
+
+    def test_fetch_series_books_by_id_keeps_compilation_alongside_standalone(self, monkeypatch):
+        """A standalone novel and a bundle edition of it sharing a position must both
+        appear when the caller has opted in to compilations — that's a deliberate
+        choice to show both, unlike a same-book language variant sharing a slot."""
+        provider = HardcoverProvider(api_key="test-token")
+
+        monkeypatch.setattr(
+            "shelfmark.metadata_providers.hardcover.app_config.get",
+            lambda key, default=None: {
+                "HARDCOVER_EXCLUDE_COMPILATIONS": False,
+                "HARDCOVER_EXCLUDE_UNRELEASED": False,
+            }.get(key, default),
+        )
+
+        monkeypatch.setattr(
+            provider,
+            "_execute_query",
+            lambda query, variables: {
+                "series": [
+                    {
+                        "id": 9001,
+                        "name": "Cynster",
+                        "primary_books_count": 2,
+                        "book_series": [
+                            {
+                                "position": 8,
+                                "book": {
+                                    "id": 1,
+                                    "title": "On a Wild Night",
+                                    "subtitle": None,
+                                    "slug": "on-a-wild-night",
+                                    "release_date": "2002-01-01",
+                                    "headline": None,
+                                    "description": "Standalone.",
+                                    "rating": 3.4,
+                                    "ratings_count": 7,
+                                    "users_count": 17,
+                                    "editions_count": 5,
+                                    "compilation": False,
+                                    "cached_image": {"url": "https://example.com/wild-night.jpg"},
+                                    "cached_contributors": [{"name": "Stephanie Laurens"}],
+                                    "contributions": [],
+                                    "featured_book_series": {
+                                        "position": 8,
+                                        "series": {
+                                            "id": 9001,
+                                            "name": "Cynster",
+                                            "primary_books_count": 2,
+                                        },
+                                    },
+                                },
+                            },
+                            {
+                                "position": 8,
+                                "book": {
+                                    "id": 2,
+                                    "title": "On a Wild Night; On a Wicked Dawn",
+                                    "subtitle": None,
+                                    "slug": "wild-night-wicked-dawn-bundle",
+                                    "release_date": "2002-06-01",
+                                    "headline": None,
+                                    "description": "2-in-1 bundle.",
+                                    "rating": 4.0,
+                                    "ratings_count": 2,
+                                    "users_count": 2,
+                                    "editions_count": 1,
+                                    "compilation": True,
+                                    "cached_image": {"url": "https://example.com/bundle.jpg"},
+                                    "cached_contributors": [{"name": "Stephanie Laurens"}],
+                                    "contributions": [],
+                                    "featured_book_series": {
+                                        "position": 8,
+                                        "series": {
+                                            "id": 9001,
+                                            "name": "Cynster",
+                                            "primary_books_count": 2,
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+        )
+
+        result = provider._fetch_series_books_by_id(
+            9001,
+            page=1,
+            limit=10,
+            exclude_compilations=False,
+            exclude_unreleased=False,
+        )
+
+        assert result.total_found == 2
+        assert {book.title for book in result.books} == {
+            "On a Wild Night",
+            "On a Wild Night; On a Wicked Dawn",
+        }
+        # Higher-scored (non-compilation, more engagement) edition lists first.
+        assert result.books[0].title == "On a Wild Night"
+
+    def test_fetch_series_books_by_id_drops_compilation_when_excluded(self, monkeypatch):
+        """The same shared-position compilation must NOT appear when the caller has
+        excluded compilations — opting out should still win over the shared-slot rule."""
+        provider = HardcoverProvider(api_key="test-token")
+
+        monkeypatch.setattr(
+            "shelfmark.metadata_providers.hardcover.app_config.get",
+            lambda key, default=None: {
+                "HARDCOVER_EXCLUDE_COMPILATIONS": True,
+                "HARDCOVER_EXCLUDE_UNRELEASED": False,
+            }.get(key, default),
+        )
+
+        monkeypatch.setattr(
+            provider,
+            "_execute_query",
+            lambda query, variables: {
+                "series": [
+                    {
+                        "id": 9001,
+                        "name": "Cynster",
+                        "primary_books_count": 2,
+                        "book_series": [
+                            {
+                                "position": 8,
+                                "book": {
+                                    "id": 1,
+                                    "title": "On a Wild Night",
+                                    "subtitle": None,
+                                    "slug": "on-a-wild-night",
+                                    "release_date": "2002-01-01",
+                                    "headline": None,
+                                    "description": "Standalone.",
+                                    "rating": 3.4,
+                                    "ratings_count": 7,
+                                    "users_count": 17,
+                                    "editions_count": 5,
+                                    "compilation": False,
+                                    "cached_image": {"url": "https://example.com/wild-night.jpg"},
+                                    "cached_contributors": [{"name": "Stephanie Laurens"}],
+                                    "contributions": [],
+                                    "featured_book_series": {
+                                        "position": 8,
+                                        "series": {
+                                            "id": 9001,
+                                            "name": "Cynster",
+                                            "primary_books_count": 2,
+                                        },
+                                    },
+                                },
+                            },
+                            {
+                                "position": 8,
+                                "book": {
+                                    "id": 2,
+                                    "title": "On a Wild Night; On a Wicked Dawn",
+                                    "subtitle": None,
+                                    "slug": "wild-night-wicked-dawn-bundle",
+                                    "release_date": "2002-06-01",
+                                    "headline": None,
+                                    "description": "2-in-1 bundle.",
+                                    "rating": 4.0,
+                                    "ratings_count": 2,
+                                    "users_count": 2,
+                                    "editions_count": 1,
+                                    "compilation": True,
+                                    "cached_image": {"url": "https://example.com/bundle.jpg"},
+                                    "cached_contributors": [{"name": "Stephanie Laurens"}],
+                                    "contributions": [],
+                                    "featured_book_series": {
+                                        "position": 8,
+                                        "series": {
+                                            "id": 9001,
+                                            "name": "Cynster",
+                                            "primary_books_count": 2,
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+        )
+
+        result = provider._fetch_series_books_by_id(
+            9001,
+            page=1,
+            limit=10,
+            exclude_compilations=True,
+            exclude_unreleased=False,
+        )
+
+        assert result.total_found == 1
+        assert result.books[0].title == "On a Wild Night"
