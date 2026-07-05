@@ -554,7 +554,10 @@ class TestHardcoverSeriesSearch:
         assert result.total_found == 5
         assert result.has_more is False
 
-    def test_fetch_series_books_by_id_prefers_best_book_per_position(self, monkeypatch):
+    def test_fetch_series_books_by_id_keeps_all_books_sharing_a_position(self, monkeypatch):
+        """Two distinct books at the same series position (e.g. a novel and a bundle
+        edition of it) must both appear, with the better-scored one listed first —
+        neither should be silently dropped."""
         provider = HardcoverProvider(api_key="test-token")
 
         monkeypatch.setattr(
@@ -759,11 +762,12 @@ class TestHardcoverSeriesSearch:
             exclude_unreleased=True,
         )
 
-        assert result.total_found == 3
+        assert result.total_found == 4
         assert result.has_more is False
         assert [book.title for book in result.books] == [
             "Sunrise on the Reaping",
             "The Alloy of Law",
+            "Aleación de ley (Wax & Wayne 1): Una novela de Mistborn",
             "Allomancer Jak and the Pits of Eltania",
         ]
-        assert [book.series_position for book in result.books] == [0.5, 4, 4.5]
+        assert [book.series_position for book in result.books] == [0.5, 4, 4, 4.5]
