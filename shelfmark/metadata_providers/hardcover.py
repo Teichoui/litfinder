@@ -1513,12 +1513,7 @@ class HardcoverProvider(MetadataProvider):
         book_series_rows = (
             series_data.get("book_series", []) if isinstance(series_data, dict) else []
         )
-        # Keyed by position, but each value is a list: two distinct books can legitimately
-        # share a position (e.g. a standalone novel and a 2-in-1 bundle edition of it both
-        # sit at the same series slot). Keeping every row — instead of picking one "winner"
-        # by sort_key and discarding the rest — avoids silently vanishing a real book from
-        # the series list.
-        rows_by_position: dict[float, list[dict[str, Any]]] = {}
+        rows_by_position: dict[float, dict[str, Any]] = {}
         for row in book_series_rows:
             if not isinstance(row, dict):
                 continue
@@ -1546,15 +1541,16 @@ class HardcoverProvider(MetadataProvider):
                 coerce_int(book_data.get("editions_count"), 0),
                 -coerce_int(book_data.get("id"), 0),
             )
-            rows_by_position.setdefault(position, []).append({"row": row, "sort_key": sort_key})
+            existing_row = rows_by_position.get(position)
+            if existing_row is None:
+                rows_by_position[position] = {"row": row, "sort_key": sort_key}
+                continue
+            if sort_key > existing_row["sort_key"]:
+                rows_by_position[position] = {"row": row, "sort_key": sort_key}
 
         ordered_rows = [
             entry["row"]
-            for position in sorted(rows_by_position)
-            # Preferred edition first within a shared position, per the existing scoring.
-            for entry in sorted(
-                rows_by_position[position], key=lambda e: e["sort_key"], reverse=True
-            )
+            for _position, entry in sorted(rows_by_position.items(), key=lambda item: item[0])
         ]
         return {"rows": ordered_rows, "series_name": series_name, "total": len(ordered_rows)}
 
