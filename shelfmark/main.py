@@ -185,6 +185,13 @@ _user_db_path = str(Path(os.environ.get("CONFIG_DIR", "/config")) / "users.db")
 user_db: UserDB | None = None
 download_history_service: DownloadHistoryService | None = None
 activity_view_state_service: ActivityViewStateService | None = None
+
+
+def _resolve_auth_mode_for_routes() -> str:
+    """Resolve auth mode lazily so tests and runtime patches still take effect."""
+    return get_auth_mode()
+
+
 try:
     user_db = UserDB(_user_db_path)
     user_db.initialize()
@@ -202,7 +209,11 @@ try:
     register_oidc_routes(app, user_db)
     register_admin_routes(app, user_db)
     register_self_user_routes(app, user_db)
-    init_watchlist_routes(watchlist_db)
+    init_watchlist_routes(
+        watchlist_db,
+        user_db=user_db,
+        resolve_auth_mode=_resolve_auth_mode_for_routes,
+    )
     app.register_blueprint(watchlist_bp)
 except (sqlite3.OperationalError, OSError) as e:
     logger.warning(
@@ -529,11 +540,6 @@ def _resolve_download_user_context(
 def _emit_request_updates(rows: list[dict[str, Any]]) -> None:
     """Defer request update emission until the runtime hook is available."""
     _emit_request_update_events(rows)
-
-
-def _resolve_auth_mode_for_routes() -> str:
-    """Resolve auth mode lazily so tests and runtime patches still take effect."""
-    return get_auth_mode()
 
 
 def _queue_release_for_routes(*args: Any, **kwargs: Any) -> Any:

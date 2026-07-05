@@ -9,6 +9,9 @@ from flask import Blueprint, jsonify, request
 from shelfmark.core.logger import setup_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from shelfmark.core.user_db import UserDB
     from shelfmark.watchlist.db import WatchlistDB
 
 logger = setup_logger(__name__)
@@ -16,15 +19,25 @@ logger = setup_logger(__name__)
 watchlist_bp = Blueprint("watchlist", __name__, url_prefix="/api/watchlist")
 _VALID_WATCH_CONTENT_TYPES = {"ebook", "audiobook"}
 _VALID_ACTION_STATUSES = {"detected", "queued", "skipped", "ignored"}
+_NO_AUTH_WATCHLIST_USERNAME = "__no_auth_watchlist__"
 
 # Populated by init_watchlist_routes()
 _watchlist_db: WatchlistDB | None = None
+_user_db: UserDB | None = None
+_resolve_auth_mode: Callable[[], str] | None = None
 
 
-def init_watchlist_routes(watchlist_db: WatchlistDB) -> None:
+def init_watchlist_routes(
+    watchlist_db: WatchlistDB,
+    *,
+    user_db: UserDB | None = None,
+    resolve_auth_mode: Callable[[], str] | None = None,
+) -> None:
     """Bind the WatchlistDB instance used by route handlers."""
-    global _watchlist_db
+    global _resolve_auth_mode, _user_db, _watchlist_db
     _watchlist_db = watchlist_db
+    _user_db = user_db
+    _resolve_auth_mode = resolve_auth_mode
 
 
 def _get_db() -> WatchlistDB:
@@ -42,11 +55,38 @@ def _get_current_user_id() -> int | None:
     from flask import session
 
     raw = session.get("db_user_id")
-    if raw is None:
+    if raw is not None:
+        try:
+            return int(raw)
+        except TypeError, ValueError:
+            return None
+
+    if _resolve_auth_mode is not None and _resolve_auth_mode() == "none":
+        return _get_no_auth_user_id()
+
+    return None
+
+
+def _get_no_auth_user_id() -> int | None:
+    if _user_db is None:
+        return None
+
+    user = _user_db.get_user(username=_NO_AUTH_WATCHLIST_USERNAME)
+    if user is None:
+        try:
+            user = _user_db.create_user(
+                username=_NO_AUTH_WATCHLIST_USERNAME,
+                display_name="No-auth watchlist",
+                role="user",
+            )
+        except ValueError:
+            user = _user_db.get_user(username=_NO_AUTH_WATCHLIST_USERNAME)
+
+    if user is None:
         return None
     try:
-        return int(raw)
-    except TypeError, ValueError:
+        return int(user["id"])
+    except TypeError, ValueError, KeyError:
         return None
 
 
