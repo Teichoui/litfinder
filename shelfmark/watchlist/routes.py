@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__)
 
 watchlist_bp = Blueprint("watchlist", __name__, url_prefix="/api/watchlist")
+_VALID_WATCH_CONTENT_TYPES = {"ebook", "audiobook"}
+_VALID_ACTION_STATUSES = {"detected", "queued", "skipped", "ignored"}
 
 # Populated by init_watchlist_routes()
 _watchlist_db: WatchlistDB | None = None
@@ -50,6 +52,18 @@ def _get_current_user_id() -> int | None:
 
 def _error(message: str, status: int = 400) -> Any:
     return jsonify({"error": message}), status
+
+
+def _validate_watch_content_types(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        return "watch_content_types must be an array"
+    if not value:
+        return "watch_content_types must not be empty"
+    if any(v not in _VALID_WATCH_CONTENT_TYPES for v in value):
+        return "watch_content_types must contain only ebook or audiobook"
+    return None
 
 
 # ------------------------------------------------------------------
@@ -91,8 +105,8 @@ def add_author() -> Any:
     if hardcover_author_id is None and ol_author_key is None:
         return _error("At least one of hardcover_author_id or ol_author_key is required")
 
-    if watch_content_types is not None and not isinstance(watch_content_types, list):
-        return _error("watch_content_types must be an array")
+    if content_type_error := _validate_watch_content_types(watch_content_types):
+        return _error(content_type_error)
 
     try:
         entry = _get_db().add_author(
@@ -103,7 +117,10 @@ def add_author() -> Any:
             watch_content_types=watch_content_types,
         )
     except ValueError as e:
-        return _error(str(e))
+        logger.warning("Failed to add watchlist author: %s", e)
+        if e.args[:1] == ("Watch entry already exists",):
+            return _error("Watch entry already exists")
+        return _error("Unable to add watch entry")
 
     return jsonify(entry), 201
 
@@ -148,8 +165,10 @@ def update_author(watch_id: int) -> Any:
 
     if is_active is not None and not isinstance(is_active, bool):
         return _error("is_active must be a boolean")
-    if watch_content_types is not None and not isinstance(watch_content_types, list):
-        return _error("watch_content_types must be an array")
+    if content_type_error := _validate_watch_content_types(watch_content_types):
+        return _error(content_type_error)
+    if author_name is not None and not str(author_name).strip():
+        return _error("author_name must not be blank")
 
     try:
         updated = _get_db().update_author(
@@ -159,7 +178,8 @@ def update_author(watch_id: int) -> Any:
             author_name=author_name,
         )
     except ValueError as e:
-        return _error(str(e))
+        logger.warning("Failed to update watchlist author %s: %s", watch_id, e)
+        return _error("Unable to update watch entry")
 
     if updated is None:
         return _error("Watch entry not found", 404)
@@ -180,6 +200,8 @@ def list_releases() -> Any:
         return _error("Not authenticated", 401)
 
     action_status = request.args.get("action_status") or None
+    if action_status is not None and action_status not in _VALID_ACTION_STATUSES:
+        return _error("Invalid action_status")
 
     try:
         limit = int(request.args.get("limit", 50))
@@ -198,6 +220,7 @@ def list_releases() -> Any:
             offset=offset,
         )
     except ValueError as e:
-        return _error(str(e))
+        logger.warning("Failed to list watchlist releases: %s", e)
+        return _error("Unable to list watchlist releases")
 
     return jsonify(releases)
