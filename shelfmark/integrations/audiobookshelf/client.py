@@ -239,10 +239,14 @@ def abs_iter_inventory(cfg: AbsConfig, library_ids: list[int]) -> Iterator[dict[
                 continue
             # ABS libraries are typed "book" regardless of whether they hold audio or
             # ebook-only content — an item with no audio tracks isn't an audiobook, even
-            # if it lives in an "audiobooks" library, so don't report it as one.
-            num_tracks = coerce_int(media.get("numTracks"), 0) or coerce_int(
-                media.get("numAudioFiles"), 0
-            )
+            # if it lives in an "audiobooks" library, so don't report it as one. Only
+            # fall back to numAudioFiles when numTracks is absent, not when ABS reports
+            # it as an explicit zero (a real "no playable tracks" signal).
+            raw_num_tracks = media.get("numTracks")
+            if raw_num_tracks is not None:
+                num_tracks = coerce_int(raw_num_tracks, 0)
+            else:
+                num_tracks = coerce_int(media.get("numAudioFiles"), 0)
             if num_tracks <= 0:
                 continue
             metadata = media.get("metadata")

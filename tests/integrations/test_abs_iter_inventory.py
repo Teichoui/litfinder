@@ -61,3 +61,30 @@ def test_iter_inventory_falls_back_to_num_audio_files(monkeypatch):
     results = list(abs_iter_inventory(_CFG, []))
 
     assert [r["title"] for r in results] == ["On a Wild Night"]
+
+
+def test_iter_inventory_honors_explicit_zero_num_tracks(monkeypatch):
+    """An explicit numTracks: 0 must not fall back to numAudioFiles — ABS reporting
+    zero playable tracks is a real signal, not a missing-field placeholder."""
+    monkeypatch.setattr(
+        client_mod, "abs_list_libraries", lambda _cfg: [{"id": 1, "name": "Audiobooks"}]
+    )
+    monkeypatch.setattr(
+        client_mod,
+        "_iter_library_items",
+        lambda _cfg, _lib_id: iter(
+            [
+                {
+                    "media": {
+                        "metadata": {"title": "Corrupt Item", "authorName": "Author"},
+                        "numTracks": 0,
+                        "numAudioFiles": 5,
+                    }
+                }
+            ]
+        ),
+    )
+
+    results = list(abs_iter_inventory(_CFG, []))
+
+    assert results == []
