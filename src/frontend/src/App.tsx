@@ -34,7 +34,7 @@ import { useActivity } from './hooks/useActivity';
 import { useAuth } from './hooks/useAuth';
 import { useDownloadTracking } from './hooks/useDownloadTracking';
 import { useMediaQuery } from './hooks/useMediaQuery';
-import { useDependencyEffect, useMountEffect } from './hooks/useMountEffect';
+import { useMountEffect } from './hooks/useMountEffect';
 import { useRealtimeStatus } from './hooks/useRealtimeStatus';
 import { useRequestPolicy } from './hooks/useRequestPolicy';
 import { useRequests } from './hooks/useRequests';
@@ -326,9 +326,11 @@ function App() {
 
   // The server rejects book-target mutations from non-admin sessions, so hide
   // the target dropdowns for them rather than letting clicks bounce with 403.
-  useDependencyEffect(() => {
-    setBookTargetEditingAllowed(authIsAdmin);
-  }, [authIsAdmin]);
+  // Synced during render (an idempotent module-flag write) so every component
+  // rendering in this same pass reads the current value — an effect would lag
+  // one render behind. No consumer is memoized, so an admin-status change
+  // re-renders them all through this component.
+  setBookTargetEditingAllowed(authIsAdmin);
 
   // Compute which content types this user is allowed to search for.
   // If a content type's default policy mode is 'blocked', hide it from the dropdown.
