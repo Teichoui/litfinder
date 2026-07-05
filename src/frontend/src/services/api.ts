@@ -59,7 +59,6 @@ const API = {
   activityDismiss: `${API_BASE}/activity/dismiss`,
   activityDismissMany: `${API_BASE}/activity/dismiss-many`,
   activityHistory: `${API_BASE}/activity/history`,
-  activityMove: `${API_BASE}/activity/move`,
   libraryFolders: `${API_BASE}/library-folders`,
   libraryBrowse: `${API_BASE}/library/browse`,
   libraryScan: `${API_BASE}/library/scan`,
@@ -796,7 +795,7 @@ export const getReleases = async (
 
 // Admin user management API
 
-export type AdminAuthSource = 'builtin' | 'oidc' | 'proxy' | 'cwa';
+export type AdminAuthSource = 'builtin' | 'oidc' | 'proxy' | 'cwa' | 'kavita';
 
 export interface AdminUserEditCapabilities {
   authSource: AdminAuthSource;
@@ -1019,14 +1018,26 @@ export const fetchLibraryFolders = async (): Promise<LibraryFolder[]> => {
   return fetchJSON<LibraryFolder[]>(API.libraryFolders);
 };
 
+export interface OrganizeFilesResponse {
+  success: boolean;
+  moved_files: Array<{ original_path: string; new_path: string }>;
+  failed_files: Array<{ path: string; error: string }>;
+  summary: string;
+}
+
 export const moveToLibrary = async (
-  taskId: string,
-  destination: string,
+  filePath: string,
+  targetFolder: string,
 ): Promise<{ success: boolean; new_path?: string; error?: string }> => {
-  return fetchJSON(API.activityMove, {
+  const result = await fetchJSON<OrganizeFilesResponse>(API.libraryOrganize, {
     method: 'POST',
-    body: JSON.stringify({ task_id: taskId, destination }),
+    body: JSON.stringify({ files: [{ path: filePath }], target_folder: targetFolder }),
   });
+  return {
+    success: result.success,
+    new_path: result.moved_files[0]?.new_path,
+    error: result.failed_files[0]?.error,
+  };
 };
 
 // Library Management Types
@@ -1045,13 +1056,6 @@ export interface DirEntry {
   size?: number;
   modified?: number;
   extension?: string;
-}
-
-export interface OrganizeFilesResponse {
-  success: boolean;
-  moved_files: Array<{ original_path: string; new_path: string }>;
-  failed_files: Array<{ path: string; error: string }>;
-  summary: string;
 }
 
 // Library Management API Functions

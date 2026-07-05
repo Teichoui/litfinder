@@ -885,7 +885,7 @@ export const ActivityCard = ({
           </div>
 
           {item.visualStatus === 'complete' &&
-            item.downloadBookId &&
+            item.downloadPath &&
             libraryFolders &&
             libraryFolders.length > 0 && (
               <div className="mt-2 flex items-center gap-2">
@@ -895,14 +895,14 @@ export const ActivityCard = ({
                   disabled={sendToStatus === 'loading' || sendToStatus === 'done'}
                   onChange={(e) => {
                     const dest = e.target.value;
-                    const downloadBookId = item.downloadBookId;
-                    if (!dest || !downloadBookId) return;
+                    const downloadPath = item.downloadPath;
+                    if (!dest || !downloadPath) return;
                     void (async () => {
                       setSendToValue(dest);
                       setSendToStatus('loading');
                       setSendToMessage('');
                       try {
-                        const result = await moveToLibrary(downloadBookId, dest);
+                        const result = await moveToLibrary(downloadPath, dest);
                         if (result.success) {
                           setSendToStatus('done');
                           setSendToMessage('Moved');

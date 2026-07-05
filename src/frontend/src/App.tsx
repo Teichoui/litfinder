@@ -2384,7 +2384,7 @@ function App() {
     : '';
 
   const mainAppContent = (
-    <SearchModeProvider searchMode={effectiveSearchMode}>
+    <SearchModeProvider searchMode={effectiveSearchMode} contentType={effectiveContentType}>
       <div ref={headerRef} className="fixed top-0 right-0 left-0 z-40">
         <Header
           calibreWebUrl={config?.calibre_web_url || ''}

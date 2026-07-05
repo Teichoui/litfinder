@@ -3040,6 +3040,9 @@ def api_metadata_book_targets_update(
     provider: str, book_id: str
 ) -> Response | tuple[Response, int]:
     """Set whether a book belongs to a provider-managed list or shelf."""
+    if get_auth_mode() != "none" and not session.get("is_admin", False):
+        return jsonify({"error": "Admin required"}), 403
+
     prov = _resolve_metadata_provider(provider)
 
     payload = request.get_json(silent=True) or {}

@@ -83,6 +83,19 @@ def test_config_endpoint_uses_user_scope_and_runtime_flags(main_module, client):
     assert ("DOWNLOAD_TO_BROWSER_CONTENT_TYPES", 42) in calls
 
 
+def test_metadata_target_mutation_requires_admin(main_module, client, monkeypatch):
+    _set_session(client, user_id="reader-1", db_user_id=42, is_admin=False)
+    monkeypatch.setattr(main_module, "get_auth_mode", lambda: "builtin")
+
+    response = client.put(
+        "/api/metadata/book/hardcover/123/targets",
+        json={"target": "id:1", "selected": True},
+    )
+
+    assert response.status_code == 403
+    assert response.json == {"error": "Admin required"}
+
+
 def test_config_endpoint_falls_back_to_audiobook_metadata_provider(main_module, client):
     _set_session(client, user_id="reader-2", db_user_id=77, is_admin=False)
 

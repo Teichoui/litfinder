@@ -61,16 +61,19 @@ def _is_within_allowed(path: Path, allowed: set[Path]) -> bool:
 def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str]) -> None:
     """Register library file-management routes on the Flask app."""
 
-    def _require_auth(action: str) -> tuple[Response, int] | None:
-        if resolve_auth_mode() == "none":
+    def _require_admin(action: str) -> tuple[Response, int] | None:
+        auth_mode = resolve_auth_mode()
+        if auth_mode == "none":
             return None
         if "user_id" not in session:
             return jsonify({"error": "Unauthorized", "action": action}), 401
+        if not session.get("is_admin", False):
+            return jsonify({"error": "Admin required", "action": action}), 403
         return None
 
     @app.route("/api/library-folders", methods=["GET"])
     def api_library_folders() -> Response | tuple[Response, int]:
-        if (gate := _require_auth("browse")) is not None:
+        if (gate := _require_admin("browse")) is not None:
             return gate
         from shelfmark.core.utils import get_library_folders
 
@@ -78,7 +81,7 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
     @app.route("/api/library/organize", methods=["POST"])
     def api_library_organize() -> Response | tuple[Response, int]:
-        if (gate := _require_auth("organize")) is not None:
+        if (gate := _require_admin("organize")) is not None:
             return gate
 
         data = request.get_json(silent=True) or {}
@@ -155,7 +158,7 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
     @app.route("/api/library/ls", methods=["GET"])
     def api_library_ls() -> Response | tuple[Response, int]:
-        if (gate := _require_auth("browse")) is not None:
+        if (gate := _require_admin("browse")) is not None:
             return gate
 
         folder_path = str(request.args.get("path") or "").strip()
@@ -196,7 +199,7 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
     @app.route("/api/library/rename", methods=["POST"])
     def api_library_rename() -> Response | tuple[Response, int]:
-        if (gate := _require_auth("rename")) is not None:
+        if (gate := _require_admin("rename")) is not None:
             return gate
 
         data = request.get_json(silent=True) or {}
@@ -231,7 +234,7 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
     @app.route("/api/library/mkdir", methods=["POST"])
     def api_library_mkdir() -> Response | tuple[Response, int]:
-        if (gate := _require_auth("mkdir")) is not None:
+        if (gate := _require_admin("mkdir")) is not None:
             return gate
 
         data = request.get_json(silent=True) or {}
