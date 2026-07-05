@@ -1513,7 +1513,12 @@ class HardcoverProvider(MetadataProvider):
         book_series_rows = (
             series_data.get("book_series", []) if isinstance(series_data, dict) else []
         )
-        rows_by_position: dict[float, dict[str, Any]] = {}
+        # Keyed by position; each value can hold more than one row, but only when the
+        # position mixes a compilation with a non-compilation and the caller opted in
+        # to compilations (exclude_compilations=False) — that's a deliberate choice to
+        # show both, not the general case of two rows just happening to share a slot
+        # (usually a same-book language variant, which we don't want to duplicate).
+        rows_by_position: dict[float, list[dict[str, Any]]] = {}
         for row in book_series_rows:
             if not isinstance(row, dict):
                 continue
@@ -1541,17 +1546,18 @@ class HardcoverProvider(MetadataProvider):
                 coerce_int(book_data.get("editions_count"), 0),
                 -coerce_int(book_data.get("id"), 0),
             )
-            existing_row = rows_by_position.get(position)
-            if existing_row is None:
-                rows_by_position[position] = {"row": row, "sort_key": sort_key}
-                continue
-            if sort_key > existing_row["sort_key"]:
-                rows_by_position[position] = {"row": row, "sort_key": sort_key}
+            rows_by_position.setdefault(position, []).append({"row": row, "sort_key": sort_key})
 
-        ordered_rows = [
-            entry["row"]
-            for _position, entry in sorted(rows_by_position.items(), key=lambda item: item[0])
-        ]
+        ordered_rows = []
+        for position in sorted(rows_by_position):
+            entries = sorted(rows_by_position[position], key=lambda e: e["sort_key"], reverse=True)
+            has_compilation = any(e["row"]["book"].get("compilation") for e in entries)
+            has_non_compilation = any(not e["row"]["book"].get("compilation") for e in entries)
+            if not exclude_compilations and has_compilation and has_non_compilation:
+                ordered_rows.extend(entry["row"] for entry in entries)
+            else:
+                ordered_rows.append(entries[0]["row"])
+
         return {"rows": ordered_rows, "series_name": series_name, "total": len(ordered_rows)}
 
     def _fetch_series_books_by_id(
