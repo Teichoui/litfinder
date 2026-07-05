@@ -6,8 +6,20 @@ import { onBookTargetChange } from './bookTargetEvents';
 // Centralised here so the check isn't hardcoded across every view component.
 const PROVIDERS_WITH_TARGETS = new Set(['hardcover']);
 
+// Target mutations write to the shared provider account, so the server only
+// accepts them from admin sessions. Every view gates the dropdown through
+// bookSupportsTargets, so tracking the flag here hides the control everywhere
+// at once instead of threading an isAdmin prop through each view.
+let targetEditingAllowed = true;
+
+/** Set from App when the session's admin status resolves (true in no-auth mode). */
+export const setBookTargetEditingAllowed = (allowed: boolean): void => {
+  targetEditingAllowed = allowed;
+};
+
 /** Returns true if the book's provider supports the book-target dropdown. */
 export const bookSupportsTargets = (book: Book): boolean =>
+  targetEditingAllowed &&
   Boolean(book.provider && book.provider_id && PROVIDERS_WITH_TARGETS.has(book.provider));
 
 type PendingRequest = {
