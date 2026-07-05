@@ -65,9 +65,7 @@ def test_organize_accepts_source_from_download_destination(tmp_path: Path, monke
     )
     monkeypatch.setattr(
         "shelfmark.core.config.config.get",
-        lambda key, default=None, **kwargs: str(downloads_dir)
-        if key == "DESTINATION"
-        else default,
+        lambda key, default=None, **kwargs: str(downloads_dir) if key == "DESTINATION" else default,
     )
 
     client = app.test_client()
