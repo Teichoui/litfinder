@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS watchlist_releases (
     request_id          INTEGER  REFERENCES download_requests(id) ON DELETE SET NULL,
     detected_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     actioned_at         TIMESTAMP,
-    UNIQUE (watch_id, provider_book_id)
+    UNIQUE (watch_id, provider, provider_book_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_watchlist_releases_watch_id
@@ -170,7 +170,9 @@ class WatchlistDB:
             msg = "At least one of hardcover_author_id or ol_author_key must be provided"
             raise ValueError(msg)
 
-        content_types = watch_content_types or ["ebook", "audiobook"]
+        content_types = (
+            ["ebook", "audiobook"] if watch_content_types is None else watch_content_types
+        )
         _validate_content_types(content_types)
 
         with self._lock:
@@ -314,7 +316,7 @@ class WatchlistDB:
                     )
                 conn.commit()
                 row = conn.execute(
-                    "SELECT * FROM watchlist_authors WHERE id = ?",
+                    "SELECT * FROM watchlist_authors WHERE id = ? AND deleted_at IS NULL",
                     (watch_id,),
                 ).fetchone()
                 return _parse_author_row(row)
@@ -390,9 +392,9 @@ class WatchlistDB:
                 row = conn.execute(
                     """
                     SELECT * FROM watchlist_releases
-                    WHERE watch_id = ? AND provider_book_id = ?
+                    WHERE watch_id = ? AND provider = ? AND provider_book_id = ?
                     """,
-                    (watch_id, provider_book_id),
+                    (watch_id, provider, provider_book_id),
                 ).fetchone()
                 result = _parse_release_row(row)
                 if result is None:

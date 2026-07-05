@@ -100,7 +100,9 @@ def add_author() -> Any:
     ol_author_key = body.get("ol_author_key") or None
     watch_content_types = body.get("watch_content_types")
 
-    if not author_name:
+    if not isinstance(author_name, str):
+        return _error("author_name must be a string")
+    if not author_name.strip():
         return _error("author_name is required")
     if hardcover_author_id is None and ol_author_key is None:
         return _error("At least one of hardcover_author_id or ol_author_key is required")
@@ -167,7 +169,9 @@ def update_author(watch_id: int) -> Any:
         return _error("is_active must be a boolean")
     if content_type_error := _validate_watch_content_types(watch_content_types):
         return _error(content_type_error)
-    if author_name is not None and not str(author_name).strip():
+    if author_name is not None and not isinstance(author_name, str):
+        return _error("author_name must be a string")
+    if author_name is not None and not author_name.strip():
         return _error("author_name must not be blank")
 
     try:

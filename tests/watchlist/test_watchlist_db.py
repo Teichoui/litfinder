@@ -189,6 +189,16 @@ class TestAddAuthor:
         )
         assert entry["watch_content_types"] == ["ebook"]
 
+    def test_add_author_rejects_empty_content_types(self, test_user):
+        user, wdb = test_user
+        with pytest.raises(ValueError, match="must not be empty"):
+            wdb.add_author(
+                user_id=user["id"],
+                author_name="Empty Types",
+                hardcover_author_id="778",
+                watch_content_types=[],
+            )
+
     def test_add_author_requires_name(self, test_user):
         user, wdb = test_user
         with pytest.raises(ValueError, match="author_name"):
@@ -301,6 +311,20 @@ class TestUpdateRemoveAuthor:
         with pytest.raises(ValueError, match="Invalid content types"):
             wdb.update_author(e["id"], watch_content_types=["comic"])
 
+    def test_update_rejects_empty_content_types(self, test_user):
+        user, wdb = test_user
+        e = wdb.add_author(user_id=user["id"], author_name="Empty Update", hardcover_author_id="13")
+        with pytest.raises(ValueError, match="must not be empty"):
+            wdb.update_author(e["id"], watch_content_types=[])
+
+    def test_update_deleted_author_returns_none(self, test_user):
+        user, wdb = test_user
+        e = wdb.add_author(
+            user_id=user["id"], author_name="Deleted Update", hardcover_author_id="14"
+        )
+        assert wdb.remove_author(e["id"]) is True
+        assert wdb.update_author(e["id"], is_active=False) is None
+
     def test_remove_author_soft_deletes(self, test_user):
         user, wdb = test_user
         e = wdb.add_author(user_id=user["id"], author_name="Remove Me", hardcover_author_id="20")
@@ -374,6 +398,31 @@ class TestUpsertRelease:
             content_type="ebook",
         )
         assert r1["id"] == r2["id"]
+
+    def test_upsert_allows_same_provider_book_id_from_different_providers(self, test_user):
+        user, wdb = test_user
+        entry = wdb.add_author(
+            user_id=user["id"], author_name="Sanderson", hardcover_author_id="99"
+        )
+        hardcover_release = wdb.upsert_release(
+            watch_id=entry["id"],
+            user_id=user["id"],
+            provider="hardcover",
+            provider_book_id="shared-book-id",
+            book_data=self._sample_book_data(),
+            content_type="ebook",
+        )
+        openlibrary_release = wdb.upsert_release(
+            watch_id=entry["id"],
+            user_id=user["id"],
+            provider="openlibrary",
+            provider_book_id="shared-book-id",
+            book_data={**self._sample_book_data(), "provider": "openlibrary"},
+            content_type="ebook",
+        )
+        assert hardcover_release["id"] != openlibrary_release["id"]
+        assert hardcover_release["provider"] == "hardcover"
+        assert openlibrary_release["provider"] == "openlibrary"
 
     def test_upsert_rejects_invalid_content_type(self, test_user):
         user, wdb = test_user
@@ -462,12 +511,26 @@ class TestCascade:
     def test_delete_user_cascades_to_authors(self, full_db, db_path):
         udb, wdb = full_db
         user = udb.create_user(username="cascade_user", password_hash="x")
-        wdb.add_author(user_id=user["id"], author_name="Cascade Author", hardcover_author_id="999")
+        entry = wdb.add_author(
+            user_id=user["id"], author_name="Cascade Author", hardcover_author_id="999"
+        )
+        wdb.upsert_release(
+            watch_id=entry["id"],
+            user_id=user["id"],
+            provider="hardcover",
+            provider_book_id="cascade-book",
+            book_data={"title": "Cascade Book"},
+            content_type="ebook",
+        )
         udb.delete_user(user["id"])
         conn = sqlite3.connect(db_path)
         conn.execute("PRAGMA foreign_keys = ON")
-        rows = conn.execute(
+        author_rows = conn.execute(
             "SELECT * FROM watchlist_authors WHERE user_id = ?", (user["id"],)
         ).fetchall()
+        release_rows = conn.execute(
+            "SELECT * FROM watchlist_releases WHERE user_id = ?", (user["id"],)
+        ).fetchall()
         conn.close()
-        assert len(rows) == 0
+        assert len(author_rows) == 0
+        assert len(release_rows) == 0
