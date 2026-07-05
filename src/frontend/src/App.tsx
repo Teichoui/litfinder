@@ -2745,11 +2745,7 @@ function App() {
 
       <LibraryManagerModal isOpen={libraryManagerOpen} onClose={handleLibraryManagerClose} />
 
-      <WatchlistModal
-        isOpen={watchlistOpen}
-        onClose={handleWatchlistClose}
-        showToast={showToast}
-      />
+      <WatchlistModal isOpen={watchlistOpen} onClose={handleWatchlistClose} showToast={showToast} />
 
       {/* Auto-show banner on startup for users without config */}
       {config && <ConfigSetupBanner settingsEnabled={config.settings_enabled} />}
