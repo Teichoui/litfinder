@@ -133,8 +133,9 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
         try:
             dest_dir.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
-            return jsonify({"error": f"Cannot create target folder: {exc}"}), 500
+        except OSError:
+            logger.exception("Failed to create target folder %s", dest_dir)
+            return jsonify({"error": "Cannot create target folder (see server logs)"}), 500
 
         moved: list[dict[str, str]] = []
         failed: list[dict[str, str]] = []
@@ -234,9 +235,9 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
                     entry["extension"] = item.suffix.lower()
                 entries.append(entry)
             return jsonify({"path": folder_path, "entries": entries})
-        except OSError as exc:
+        except OSError:
             logger.exception("Failed to list directory %s", folder_path)
-            return jsonify({"error": f"Failed to list directory: {exc}"}), 500
+            return jsonify({"error": "Failed to list directory (see server logs)"}), 500
 
     @app.route("/api/library/rename", methods=["POST"])
     def api_library_rename() -> Response | tuple[Response, int]:
@@ -267,8 +268,9 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
         try:
             src.rename(dest)
-        except OSError as exc:
-            return jsonify({"error": f"Rename failed: {exc}"}), 500
+        except OSError:
+            logger.exception("Failed to rename %s -> %s", src, dest)
+            return jsonify({"error": "Rename failed (see server logs)"}), 500
 
         logger.info("Renamed: %s -> %s", src, dest)
         return jsonify({"success": True, "new_path": str(dest)})
@@ -306,8 +308,9 @@ def register_library_routes(app: Flask, *, resolve_auth_mode: Callable[[], str])
 
         try:
             resolved_new_dir.mkdir(parents=False)
-        except OSError as exc:
-            return jsonify({"error": f"Failed to create directory: {exc}"}), 500
+        except OSError:
+            logger.exception("Failed to create directory %s", resolved_new_dir)
+            return jsonify({"error": "Failed to create directory (see server logs)"}), 500
 
         logger.info("Created directory: %s", resolved_new_dir)
         return jsonify({"success": True, "path": str(resolved_new_dir)})
