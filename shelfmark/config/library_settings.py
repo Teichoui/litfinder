@@ -71,9 +71,7 @@ def _import_abs_libraries(current_values: dict[str, Any]) -> dict[str, Any]:
     raw_existing = app_config.get("LIBRARY_FOLDERS") or []
     existing = raw_existing if isinstance(raw_existing, list) else []
     merged: list[dict[str, Any]] = [f for f in existing if isinstance(f, dict)]
-    seen = {
-        (str(f.get("name", "")).strip(), str(f.get("path", "")).strip()) for f in merged
-    }
+    seen = {(str(f.get("name", "")).strip(), str(f.get("path", "")).strip()) for f in merged}
 
     added = 0
     for folder in imported:
@@ -95,9 +93,7 @@ def _import_abs_libraries(current_values: dict[str, Any]) -> dict[str, Any]:
         if Path(f["path"]).is_dir():
             details.append(f"✓ {f['name']} -> {f['path']}")
         else:
-            details.append(
-                f"⚠ {f['name']} -> {f['path']} (not visible to LitFinder)"
-            )
+            details.append(f"⚠ {f['name']} -> {f['path']} (not visible to LitFinder)")
             missing += 1
 
     warning = ""
@@ -111,7 +107,8 @@ def _import_abs_libraries(current_values: dict[str, Any]) -> dict[str, Any]:
     if added == 0:
         return {
             "success": True,
-            "message": "Your Audiobookshelf libraries are already listed — nothing new to add." + warning,
+            "message": "Your Audiobookshelf libraries are already listed — nothing new to add."
+            + warning,
             "details": details,
         }
     return {

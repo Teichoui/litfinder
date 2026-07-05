@@ -210,7 +210,7 @@ def _first_series(metadata: dict[str, Any]) -> tuple[str | None, float | None]:
         try:
             sequence = entry.get("sequence")
             index = float(sequence) if sequence not in (None, "") else None
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             index = None
         return name, index
     if isinstance(entry, str):

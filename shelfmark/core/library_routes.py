@@ -54,7 +54,7 @@ def _is_within_allowed(path: Path, allowed: set[Path]) -> bool:
     try:
         resolved = path.resolve()
         return any(resolved == a or resolved.is_relative_to(a) for a in allowed)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return False
 
 

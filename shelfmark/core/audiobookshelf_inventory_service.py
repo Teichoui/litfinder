@@ -32,7 +32,7 @@ def _to_float(value: object) -> float | None:
         return None
     try:
         return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
@@ -131,7 +131,7 @@ class AbsInventoryService:
             series_index = rec.get("series_index")
             try:
                 series_index = float(series_index) if series_index is not None else None
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 series_index = None
             kind = rec.get("kind", "book")
             norm_t = normalize_title(rec.get("title"))

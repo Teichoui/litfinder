@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import type { RequestRecord } from '../../types';
-import { withBasePath } from '../../utils/basePath';
 import type { LibraryFolder } from '../../services/api';
 import { moveToLibrary } from '../../services/api';
+import type { RequestRecord } from '../../types';
+import { withBasePath } from '../../utils/basePath';
 import { Tooltip } from '../shared/Tooltip';
 import type { ActivityCardAction } from './activityCardModel';
 import { buildActivityCardModel } from './activityCardModel';
@@ -928,7 +928,9 @@ export const ActivityCard = ({
                   <span className="text-xs text-gray-500">Moving…</span>
                 )}
                 {sendToStatus === 'done' && (
-                  <span className="text-xs text-green-600 dark:text-green-400">✓ {sendToMessage}</span>
+                  <span className="text-xs text-green-600 dark:text-green-400">
+                    ✓ {sendToMessage}
+                  </span>
                 )}
                 {sendToStatus === 'error' && (
                   <span className="text-xs text-red-500">{sendToMessage}</span>

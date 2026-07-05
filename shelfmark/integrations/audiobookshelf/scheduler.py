@@ -55,7 +55,7 @@ def _apply_cron(scheduler: BackgroundScheduler, *, enabled: bool, expression: st
     expression = (expression or DEFAULT_CRON).strip()
     try:
         trigger = validate_cron(expression)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         logger.warning(
             "Invalid Audiobookshelf cron '%s'; falling back to '%s'", expression, DEFAULT_CRON
         )

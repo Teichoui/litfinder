@@ -82,7 +82,7 @@ def parse_volume_title(value: object) -> tuple[str | None, float | None]:
         return None, None
     try:
         volume = float(match.group(1))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None, None
     series_part = text[: match.start()].strip(" ,:-")
     return (series_part or None), volume

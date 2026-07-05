@@ -79,7 +79,7 @@ def _selected_library_ids(
         for value in raw:
             try:
                 selected.append(int(value))
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
     if selected:
         return selected

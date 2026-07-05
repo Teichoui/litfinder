@@ -1075,7 +1075,9 @@ export const organizeFiles = async (
     body: JSON.stringify({ files, target_folder: targetFolder }),
   });
 
-export const listDirectory = async (path: string): Promise<{ path: string; entries: DirEntry[] }> => {
+export const listDirectory = async (
+  path: string,
+): Promise<{ path: string; entries: DirEntry[] }> => {
   const params = new URLSearchParams({ path });
   return fetchJSON(`${API.libraryLs}?${params}`);
 };

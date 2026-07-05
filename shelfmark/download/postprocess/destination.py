@@ -80,7 +80,7 @@ def get_final_destination(task: DownloadTask) -> Path:
 
     try:
         override = get_source(task.source).get_destination_override(task)
-    except (ValueError, SourceUnavailableError):
+    except ValueError, SourceUnavailableError:
         override = None
 
     if override:

@@ -4,9 +4,9 @@ import { useTabIndicator } from '../../hooks/ui/useTabIndicator';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useMountEffect } from '../../hooks/useMountEffect';
-import type { RequestRecord, StatusData } from '../../types';
 import type { LibraryFolder } from '../../services/api';
 import { fetchLibraryFolders } from '../../services/api';
+import type { RequestRecord, StatusData } from '../../types';
 import { Dropdown } from '../Dropdown';
 import { ActivityCard } from './ActivityCard';
 import type { DownloadStatusKey } from './activityMappers';
@@ -276,7 +276,9 @@ export const ActivitySidebar = ({
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
 
   useMountEffect(() => {
-    void fetchLibraryFolders().then(setLibraryFolders).catch(() => undefined);
+    void fetchLibraryFolders()
+      .then(setLibraryFolders)
+      .catch(() => undefined);
   });
   const dismissedKeySet = useMemo(() => new Set(dismissedItemKeys), [dismissedItemKeys]);
   const handleTabChange = useCallback(
@@ -468,8 +470,7 @@ export const ActivitySidebar = ({
   }, [baseVisibleItems]);
 
   const effectiveSelectedUser =
-    selectedUser === ALL_USERS_FILTER ||
-    availableUsers.some((u) => u.username === selectedUser)
+    selectedUser === ALL_USERS_FILTER || availableUsers.some((u) => u.username === selectedUser)
       ? selectedUser
       : ALL_USERS_FILTER;
   if (effectiveSelectedUser !== selectedUser) {
@@ -691,42 +692,41 @@ export const ActivitySidebar = ({
               >
                 {({ close }) => (
                   <div role="listbox">
-                    {[
-                      { username: ALL_USERS_FILTER, label: 'All users' },
-                      ...availableUsers,
-                    ].map(({ username: value, label }) => {
-                      const isSelected = effectiveSelectedUser === value;
-                      return (
-                        <button
-                          type="button"
-                          key={value}
-                          className={`hover-surface flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
-                            isSelected ? 'text-sky-600 dark:text-sky-400' : ''
-                          }`}
-                          onClick={() => {
-                            setSelectedUser(value);
-                            close();
-                          }}
-                        >
-                          <span>{label}</span>
-                          {isSelected && (
-                            <svg
-                              className="h-4 w-4"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="m5 13 4 4L19 7"
-                              />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
+                    {[{ username: ALL_USERS_FILTER, label: 'All users' }, ...availableUsers].map(
+                      ({ username: value, label }) => {
+                        const isSelected = effectiveSelectedUser === value;
+                        return (
+                          <button
+                            type="button"
+                            key={value}
+                            className={`hover-surface flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
+                              isSelected ? 'text-sky-600 dark:text-sky-400' : ''
+                            }`}
+                            onClick={() => {
+                              setSelectedUser(value);
+                              close();
+                            }}
+                          >
+                            <span>{label}</span>
+                            {isSelected && (
+                              <svg
+                                className="h-4 w-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="m5 13 4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      },
+                    )}
                   </div>
                 )}
               </Dropdown>
@@ -865,7 +865,12 @@ export const ActivitySidebar = ({
             return (
               <div className="divide-y divide-[color-mix(in_srgb,var(--border-muted)_60%,transparent)]">
                 {visibleItems.map((item) => (
-                  <ActivityCard key={item.id} item={item} isAdmin={isAdmin} libraryFolders={libraryFolders} />
+                  <ActivityCard
+                    key={item.id}
+                    item={item}
+                    isAdmin={isAdmin}
+                    libraryFolders={libraryFolders}
+                  />
                 ))}
                 {historyHasMore && (
                   <div className="pt-3 text-center">

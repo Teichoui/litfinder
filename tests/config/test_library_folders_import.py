@@ -46,7 +46,9 @@ def test_import_flags_paths_not_mounted_in_litfinder(monkeypatch, tmp_path):
     assert result["success"] is True
     assert "1 of these folder path" in result["message"]
     assert any(d.startswith("✓ Audiobooks") for d in result["details"])
-    assert any(d.startswith("⚠ Ebooks") and "not visible to LitFinder" in d for d in result["details"])
+    assert any(
+        d.startswith("⚠ Ebooks") and "not visible to LitFinder" in d for d in result["details"]
+    )
 
 
 def test_import_no_warning_when_all_paths_resolve(monkeypatch, tmp_path):

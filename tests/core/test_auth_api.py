@@ -247,9 +247,7 @@ class TestLoginSemantics:
             assert "user_id" not in sess
             assert "oidc_id_token" not in sess
 
-    def test_logout_oidc_without_idp_logout_support_still_clears_session(
-        self, main_module, client
-    ):
+    def test_logout_oidc_without_idp_logout_support_still_clears_session(self, main_module, client):
         with client.session_transaction() as sess:
             sess["user_id"] = "alice"
 
@@ -342,9 +340,7 @@ class TestKavitaLogin:
         def _raise(base_url, username, password):
             raise KavitaError("Invalid Kavita username or password")
 
-        monkeypatch.setattr(
-            "shelfmark.integrations.kavita.client.kavita_login_user", _raise
-        )
+        monkeypatch.setattr("shelfmark.integrations.kavita.client.kavita_login_user", _raise)
 
         with patch.object(main_module, "get_auth_mode", return_value="kavita"):
             response = client.post(

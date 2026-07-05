@@ -8,6 +8,7 @@ import { ConfigSetupBanner } from './components/ConfigSetupBanner';
 import { DetailsModal } from './components/DetailsModal';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
+import { LibraryManagerModal } from './components/library';
 import { MetadataConfigSession } from './components/MetadataConfigSession';
 import { OnBehalfConfirmationModal } from './components/OnBehalfConfirmationModal';
 import { OnboardingModal } from './components/OnboardingModal';
@@ -16,7 +17,6 @@ import { RequestConfirmationModal } from './components/RequestConfirmationModal'
 import { ResultsSection } from './components/ResultsSection';
 import { SearchSection } from './components/SearchSection';
 import { SelfSettingsModal, SettingsModal } from './components/settings';
-import { LibraryManagerModal } from './components/library';
 import { ToastContainer } from './components/ToastContainer';
 import { UrlSearchBootstrapMount } from './components/UrlSearchBootstrapMount';
 import { SearchModeProvider } from './contexts/SearchModeContext';
@@ -2724,10 +2724,7 @@ function App() {
         onSettingsSaved={handleSettingsSaved}
       />
 
-      <LibraryManagerModal
-        isOpen={libraryManagerOpen}
-        onClose={handleLibraryManagerClose}
-      />
+      <LibraryManagerModal isOpen={libraryManagerOpen} onClose={handleLibraryManagerClose} />
 
       {/* Auto-show banner on startup for users without config */}
       {config && <ConfigSetupBanner settingsEnabled={config.settings_enabled} />}

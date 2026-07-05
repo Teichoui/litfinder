@@ -204,7 +204,7 @@ class TestOIDCCallbackEndpoint:
                 "name": "John Doe",
                 "preferred_username": "john",
                 "groups": ["users"],
-            }
+            },
         }
         mock_get_client.return_value = (fake_client, MOCK_OIDC_CONFIG)
 
@@ -558,7 +558,8 @@ class TestOIDCCallbackEndpoint:
             }
         }
         mock_get_client.return_value = (
-            fake_client, {**MOCK_OIDC_CONFIG, "OIDC_ALLOW_EMAIL_LINK": True}
+            fake_client,
+            {**MOCK_OIDC_CONFIG, "OIDC_ALLOW_EMAIL_LINK": True},
         )
 
         resp = client.get("/api/auth/oidc/callback?code=abc123&state=test-state")
