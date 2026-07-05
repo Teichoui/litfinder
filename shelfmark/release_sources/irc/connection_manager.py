@@ -214,8 +214,11 @@ class IRCConnectionManager:
         The connection stays open for potential reuse.
         """
         key = self._connection_key(
-            client.server, client.port, client.nick,
-            use_tls=client.use_tls, verify_ssl=client.verify_ssl,
+            client.server,
+            client.port,
+            client.nick,
+            use_tls=client.use_tls,
+            verify_ssl=client.verify_ssl,
         )
 
         with self._conn_lock:
@@ -230,8 +233,11 @@ class IRCConnectionManager:
         releasing it for reuse.
         """
         key = self._connection_key(
-            client.server, client.port, client.nick,
-            use_tls=client.use_tls, verify_ssl=client.verify_ssl,
+            client.server,
+            client.port,
+            client.nick,
+            use_tls=client.use_tls,
+            verify_ssl=client.verify_ssl,
         )
 
         with self._conn_lock:

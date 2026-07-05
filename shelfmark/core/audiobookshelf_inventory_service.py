@@ -55,7 +55,9 @@ def _book_identity(
     if isbn_10:
         return ("i10", str(isbn_10))
     if series_index is not None and norm_series_full:
-        return ("vol", str(norm_series_full), float(series_index))
+        index = _to_float(series_index)
+        if index is not None:
+            return ("vol", str(norm_series_full), index)
     if norm_title and norm_author:
         return ("ta", str(norm_title), str(norm_author))
     if norm_title:

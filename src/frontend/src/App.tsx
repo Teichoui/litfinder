@@ -8,6 +8,7 @@ import { ConfigSetupBanner } from './components/ConfigSetupBanner';
 import { DetailsModal } from './components/DetailsModal';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
+import { LibraryManagerModal } from './components/library';
 import { MetadataConfigSession } from './components/MetadataConfigSession';
 import { OnBehalfConfirmationModal } from './components/OnBehalfConfirmationModal';
 import { OnboardingModal } from './components/OnboardingModal';
@@ -16,7 +17,6 @@ import { RequestConfirmationModal } from './components/RequestConfirmationModal'
 import { ResultsSection } from './components/ResultsSection';
 import { SearchSection } from './components/SearchSection';
 import { SelfSettingsModal, SettingsModal } from './components/settings';
-import { LibraryManagerModal } from './components/library';
 import { ToastContainer } from './components/ToastContainer';
 import { UrlSearchBootstrapMount } from './components/UrlSearchBootstrapMount';
 import { SearchModeProvider } from './contexts/SearchModeContext';
@@ -84,7 +84,7 @@ import { formatActingAsUserName } from './utils/actingAsUser';
 import { buildLoginRedirectPath, getReturnToFromSearch } from './utils/authRedirect';
 import { withBasePath } from './utils/basePath';
 import { emitBookTargetChange } from './utils/bookTargetEvents';
-import { bookSupportsTargets } from './utils/bookTargetLoader';
+import { bookSupportsTargets, setBookTargetEditingAllowed } from './utils/bookTargetLoader';
 import { buildSearchQuery } from './utils/buildSearchQuery';
 import { wasDownloadQueuedAfterResponseError } from './utils/downloadRecovery';
 import { getDynamicOptionGroup } from './utils/dynamicFieldOptions';
@@ -323,6 +323,14 @@ function App() {
   });
 
   const requestRoleIsAdmin = requestPolicy?.is_admin ?? false;
+
+  // The server rejects book-target mutations from non-admin sessions, so hide
+  // the target dropdowns for them rather than letting clicks bounce with 403.
+  // Synced during render (an idempotent module-flag write) so every component
+  // rendering in this same pass reads the current value — an effect would lag
+  // one render behind. No consumer is memoized, so an admin-status change
+  // re-renders them all through this component.
+  setBookTargetEditingAllowed(authIsAdmin);
 
   // Compute which content types this user is allowed to search for.
   // If a content type's default policy mode is 'blocked', hide it from the dropdown.
@@ -2384,7 +2392,7 @@ function App() {
     : '';
 
   const mainAppContent = (
-    <SearchModeProvider searchMode={effectiveSearchMode}>
+    <SearchModeProvider searchMode={effectiveSearchMode} contentType={effectiveContentType}>
       <div ref={headerRef} className="fixed top-0 right-0 left-0 z-40">
         <Header
           calibreWebUrl={config?.calibre_web_url || ''}
@@ -2397,7 +2405,7 @@ function App() {
           onSearchChange={handleActiveQueryValueChange}
           onDownloadsClick={toggleDownloadsSidebar}
           onSettingsClick={handleSettingsClick}
-          onLibraryManagerClick={handleLibraryManagerClick}
+          onLibraryManagerClick={authIsAdmin ? handleLibraryManagerClick : undefined}
           isAdmin={requestRoleIsAdmin}
           canAccessSettings={isAuthenticated}
           username={username}
@@ -2724,10 +2732,7 @@ function App() {
         onSettingsSaved={handleSettingsSaved}
       />
 
-      <LibraryManagerModal
-        isOpen={libraryManagerOpen}
-        onClose={handleLibraryManagerClose}
-      />
+      <LibraryManagerModal isOpen={libraryManagerOpen} onClose={handleLibraryManagerClose} />
 
       {/* Auto-show banner on startup for users without config */}
       {config && <ConfigSetupBanner settingsEnabled={config.settings_enabled} />}

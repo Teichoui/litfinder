@@ -208,9 +208,8 @@ def _first_series(metadata: dict[str, Any]) -> tuple[str | None, float | None]:
     if isinstance(entry, dict):
         name = str(entry.get("name") or "").strip() or None
         try:
-            index = (
-                float(entry.get("sequence")) if entry.get("sequence") not in (None, "") else None
-            )
+            sequence = entry.get("sequence")
+            index = float(sequence) if sequence not in (None, "") else None
         except TypeError, ValueError:
             index = None
         return name, index

@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import type { RequestRecord } from '../../types';
-import { withBasePath } from '../../utils/basePath';
 import type { LibraryFolder } from '../../services/api';
 import { moveToLibrary } from '../../services/api';
+import type { RequestRecord } from '../../types';
+import { withBasePath } from '../../utils/basePath';
 import { Tooltip } from '../shared/Tooltip';
 import type { ActivityCardAction } from './activityCardModel';
 import { buildActivityCardModel } from './activityCardModel';
@@ -885,7 +885,7 @@ export const ActivityCard = ({
           </div>
 
           {item.visualStatus === 'complete' &&
-            item.downloadBookId &&
+            item.downloadPath &&
             libraryFolders &&
             libraryFolders.length > 0 && (
               <div className="mt-2 flex items-center gap-2">
@@ -893,25 +893,28 @@ export const ActivityCard = ({
                   className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                   value={sendToValue}
                   disabled={sendToStatus === 'loading' || sendToStatus === 'done'}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const dest = e.target.value;
-                    if (!dest) return;
-                    setSendToValue(dest);
-                    setSendToStatus('loading');
-                    setSendToMessage('');
-                    try {
-                      const result = await moveToLibrary(item.downloadBookId!, dest);
-                      if (result.success) {
-                        setSendToStatus('done');
-                        setSendToMessage('Moved');
-                      } else {
+                    const downloadPath = item.downloadPath;
+                    if (!dest || !downloadPath) return;
+                    void (async () => {
+                      setSendToValue(dest);
+                      setSendToStatus('loading');
+                      setSendToMessage('');
+                      try {
+                        const result = await moveToLibrary(downloadPath, dest);
+                        if (result.success) {
+                          setSendToStatus('done');
+                          setSendToMessage('Moved');
+                        } else {
+                          setSendToStatus('error');
+                          setSendToMessage(result.error ?? 'Failed');
+                        }
+                      } catch {
                         setSendToStatus('error');
-                        setSendToMessage(result.error ?? 'Failed');
+                        setSendToMessage('Failed to move');
                       }
-                    } catch {
-                      setSendToStatus('error');
-                      setSendToMessage('Failed to move');
-                    }
+                    })();
                   }}
                 >
                   <option value="">Send to library…</option>
@@ -925,7 +928,9 @@ export const ActivityCard = ({
                   <span className="text-xs text-gray-500">Moving…</span>
                 )}
                 {sendToStatus === 'done' && (
-                  <span className="text-xs text-green-600 dark:text-green-400">✓ {sendToMessage}</span>
+                  <span className="text-xs text-green-600 dark:text-green-400">
+                    ✓ {sendToMessage}
+                  </span>
                 )}
                 {sendToStatus === 'error' && (
                   <span className="text-xs text-red-500">{sendToMessage}</span>

@@ -62,15 +62,16 @@ export const LibraryBadge = ({ book, variant = 'inline' }: LibraryBadgeProps) =>
     return null;
   }
 
-  const base =
-    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-white';
+  const base = 'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-white';
   const overlayShadow =
     variant === 'overlay'
       ? { boxShadow: '0 2px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)' }
       : undefined;
 
   return (
-    <span className={variant === 'overlay' ? 'flex flex-col items-start gap-1' : 'inline-flex gap-1'}>
+    <span
+      className={variant === 'overlay' ? 'flex flex-col items-start gap-1' : 'inline-flex gap-1'}
+    >
       {pills.map((pill) => (
         <span
           key={pill.key}

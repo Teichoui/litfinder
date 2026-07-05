@@ -629,9 +629,7 @@ def migrate_library_folders() -> None:
     target = load_config_file("library_folders")
     merged = _as_folder_list(target.get("LIBRARY_FOLDERS"))
     original_count = len(merged)
-    seen = {
-        (str(f.get("name", "")).strip(), str(f.get("path", "")).strip()) for f in merged
-    }
+    seen = {(str(f.get("name", "")).strip(), str(f.get("path", "")).strip()) for f in merged}
 
     for legacy_tab in ("download_sources", "downloads"):
         for folder in _as_folder_list(load_config_file(legacy_tab).get("LIBRARY_FOLDERS")):

@@ -601,7 +601,8 @@ def _apply_deferred_field_updates() -> None:
                     else:
                         logger.warning(
                             "Deferred settings fields for plugin %s lost — tab %s not found in registry",
-                            stem, tab_name,
+                            stem,
+                            tab_name,
                         )
         except Exception:
             logger.exception("Error applying deferred settings fields for plugin: %s", stem)

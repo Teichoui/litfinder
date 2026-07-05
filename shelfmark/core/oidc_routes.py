@@ -227,7 +227,9 @@ def build_oidc_logout_url(id_token: str | None) -> str | None:
         logger.debug("OIDC logout: could not load provider metadata", exc_info=True)
         return None
 
-    end_session_endpoint = metadata.get("end_session_endpoint") if isinstance(metadata, dict) else None
+    end_session_endpoint = (
+        metadata.get("end_session_endpoint") if isinstance(metadata, dict) else None
+    )
     if not end_session_endpoint or not isinstance(end_session_endpoint, str):
         return None
 
@@ -357,9 +359,7 @@ def register_oidc_routes(app: Flask, user_db: UserDB) -> None:
                 config.get("OIDC_ALLOW_EMAIL_LINK", False), default=False
             )
             allow_email_link = (
-                email_link_enabled
-                and bool(user_info.get("email"))
-                and _is_email_verified(claims)
+                email_link_enabled and bool(user_info.get("email")) and _is_email_verified(claims)
             )
             user = provision_oidc_user(
                 user_db,

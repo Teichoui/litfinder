@@ -142,7 +142,9 @@ class TestProvisionAbsUser:
         )
         monkeypatch.setattr(prov, "abs_user_exists", lambda cfg, username: False)
         monkeypatch.setattr(
-            prov, "abs_create_user", lambda cfg, username, password: created.append((username, password))
+            prov,
+            "abs_create_user",
+            lambda cfg, username, password: created.append((username, password)),
         )
         prov.provision_abs_user("reader", "pw")
         assert created == [("reader", "pw")]

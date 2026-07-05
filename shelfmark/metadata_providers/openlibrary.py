@@ -214,7 +214,7 @@ class OpenLibraryProvider(MetadataProvider):
             logger.warning("Open Library search timed out")
             return []
         except requests.HTTPError as e:
-            if e.response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
+            if e.response is not None and e.response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
                 logger.warning("Open Library service unavailable (503)")
             else:
                 logger.exception("Open Library HTTP error")
@@ -222,7 +222,7 @@ class OpenLibraryProvider(MetadataProvider):
         except requests.RequestException:
             logger.exception("Open Library search request failed")
             return []
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.exception("Open Library search parsing error")
             return []
         return books
@@ -253,7 +253,7 @@ class OpenLibraryProvider(MetadataProvider):
             logger.warning("Open Library get_book timed out")
             return None
         except requests.HTTPError as e:
-            if e.response.status_code == HTTPStatus.NOT_FOUND:
+            if e.response is not None and e.response.status_code == HTTPStatus.NOT_FOUND:
                 logger.debug("Open Library work not found: %s", book_id)
             else:
                 logger.exception("Open Library HTTP error")
@@ -261,7 +261,7 @@ class OpenLibraryProvider(MetadataProvider):
         except requests.RequestException:
             logger.exception("Open Library get_book request failed")
             return None
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.exception("Open Library get_book parsing error")
             return None
 
@@ -314,7 +314,7 @@ class OpenLibraryProvider(MetadataProvider):
             return self._parse_edition(edition, clean_isbn)
 
         except requests.HTTPError as e:
-            if e.response.status_code == HTTPStatus.NOT_FOUND:
+            if e.response is not None and e.response.status_code == HTTPStatus.NOT_FOUND:
                 logger.debug("Open Library ISBN not found: %s", isbn)
             else:
                 logger.exception("Open Library ISBN search HTTP error")
@@ -322,7 +322,7 @@ class OpenLibraryProvider(MetadataProvider):
         except requests.RequestException:
             logger.exception("Open Library ISBN search request failed")
             return None
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.exception("Open Library ISBN search parsing error")
             return None
 
@@ -513,7 +513,7 @@ class OpenLibraryProvider(MetadataProvider):
             author = response.json()
             return author.get("name")
 
-        except (requests.RequestException, ValueError):
+        except requests.RequestException, ValueError:
             # Don't log errors for author lookups - they're supplementary
             return None
 

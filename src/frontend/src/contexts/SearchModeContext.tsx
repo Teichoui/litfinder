@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useMemo } from 'react';
 
-import type { SearchMode } from '../types';
+import type { ContentType, SearchMode } from '../types';
 
 interface SearchModeContextValue {
   searchMode: SearchMode;
+  contentType?: ContentType;
   isUniversalMode: boolean;
 }
 
@@ -20,13 +21,14 @@ export function useSearchMode(): SearchModeContextValue {
 
 interface SearchModeProviderProps {
   searchMode: SearchMode;
+  contentType?: ContentType;
   children: ReactNode;
 }
 
-export function SearchModeProvider({ searchMode, children }: SearchModeProviderProps) {
+export function SearchModeProvider({ searchMode, contentType, children }: SearchModeProviderProps) {
   const value = useMemo(
-    () => ({ searchMode, isUniversalMode: searchMode === 'universal' }),
-    [searchMode],
+    () => ({ searchMode, contentType, isUniversalMode: searchMode === 'universal' }),
+    [searchMode, contentType],
   );
 
   return <SearchModeContext.Provider value={value}>{children}</SearchModeContext.Provider>;

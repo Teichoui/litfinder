@@ -355,6 +355,8 @@ def kavita_iter_inventory(
         if series_id is None or not series_name:
             continue
         if wanted is not None:
+            if library_id is None:
+                continue
             try:
                 if int(library_id) not in wanted:
                     continue

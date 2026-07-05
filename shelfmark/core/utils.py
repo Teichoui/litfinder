@@ -127,23 +127,13 @@ CONTENT_TYPES = [
     "other",
 ]
 
-def get_library_folders() -> list[dict[str, str]]:
-    """Return configured library folders as [{name, path}, ...] dicts."""
-    from shelfmark.core.config import config
-
-    folders = config.get("LIBRARY_FOLDERS") or []
-    return [
-        {"name": str(f.get("name", "")).strip(), "path": str(f.get("path", "")).strip()}
-        for f in folders
-        if isinstance(f, dict) and f.get("name") and f.get("path")
-    ]
-
 
 def get_library_folders() -> list[dict[str, str]]:
     """Return configured library folders as [{name, path}, ...] dicts."""
     from shelfmark.core.config import config
 
-    folders = config.get("LIBRARY_FOLDERS") or []
+    raw_folders = config.get("LIBRARY_FOLDERS") or []
+    folders = raw_folders if isinstance(raw_folders, list) else []
     return [
         {"name": str(f.get("name", "")).strip(), "path": str(f.get("path", "")).strip()}
         for f in folders
@@ -181,7 +171,7 @@ def _resolve_destination_username(
         if not user:
             return ""
         return str(user.get("username") or "").strip()
-    except (ImportError, OSError, sqlite3.Error):
+    except ImportError, OSError, sqlite3.Error:
         return ""
 
 

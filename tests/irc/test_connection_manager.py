@@ -66,8 +66,11 @@ def test_close_connection_tolerates_disconnect_error(manager):
     client.verify_ssl = False
     client.disconnect.side_effect = RuntimeError("disconnect failed")
     key = manager._connection_key(
-        client.server, client.port, client.nick,
-        use_tls=client.use_tls, verify_ssl=client.verify_ssl,
+        client.server,
+        client.port,
+        client.nick,
+        use_tls=client.use_tls,
+        verify_ssl=client.verify_ssl,
     )
 
     manager._connections[key] = client

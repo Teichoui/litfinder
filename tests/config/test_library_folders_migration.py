@@ -40,7 +40,12 @@ def test_migrate_library_folders_consolidates_and_prunes(monkeypatch, tmp_path):
     _seed(
         plugins,
         "downloads",
-        {"LIBRARY_FOLDERS": [{"name": "Audiobooks", "path": "/mnt/abs"}, {"name": "Comics", "path": "/mnt/c"}]},
+        {
+            "LIBRARY_FOLDERS": [
+                {"name": "Audiobooks", "path": "/mnt/abs"},
+                {"name": "Comics", "path": "/mnt/c"},
+            ]
+        },
     )
     _seed(plugins, "library_folders", {"LIBRARY_FOLDERS": [{"name": "Manual", "path": "/mnt/m"}]})
 
@@ -73,7 +78,11 @@ def test_migrate_library_folders_keeps_existing_abs_connection(monkeypatch, tmp_
     import shelfmark.core.settings_registry as registry
 
     plugins = _setup_config_dir(monkeypatch, tmp_path)
-    _seed(plugins, "download_sources", {"AUDIOBOOKSHELF_URL": "http://old", "AUDIOBOOKSHELF_API_KEY": "old"})
+    _seed(
+        plugins,
+        "download_sources",
+        {"AUDIOBOOKSHELF_URL": "http://old", "AUDIOBOOKSHELF_API_KEY": "old"},
+    )
     _seed(plugins, "audiobookshelf", {"ABS_URL": "http://new", "ABS_API_KEY": "new"})
 
     registry.migrate_library_folders()
@@ -98,7 +107,7 @@ def test_migrate_library_folders_is_idempotent(monkeypatch, tmp_path):
 
 
 def test_library_folders_is_the_only_canonical_tab():
-    import shelfmark.config.library_settings  # noqa: F401
+    import shelfmark.config.library_settings
     import shelfmark.config.settings  # noqa: F401
     from shelfmark.core.settings_registry import get_settings_field_map, get_settings_tab
 

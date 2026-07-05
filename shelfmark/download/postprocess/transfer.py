@@ -15,7 +15,6 @@ from shelfmark.core.naming import (
     parse_naming_template,
     sanitize_filename,
 )
-from shelfmark.download.postprocess.group import group_book_files
 from shelfmark.core.utils import is_audiobook as check_audiobook
 from shelfmark.download.fs import (
     atomic_copy,
@@ -23,6 +22,7 @@ from shelfmark.download.fs import (
     atomic_move,
     run_blocking_io,
 )
+from shelfmark.download.postprocess.group import group_book_files
 from shelfmark.download.postprocess.policy import get_file_organization, get_template
 
 from .scan import collect_directory_files, scan_directory_tree
@@ -125,7 +125,7 @@ def is_torrent_source(source_path: Path, task: DownloadTask) -> bool:
     original_path = Path(task.original_download_path)
     try:
         return run_blocking_io(source_path.resolve) == run_blocking_io(original_path.resolve)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return os.path.normpath(str(source_path)) == os.path.normpath(str(original_path))
 
 

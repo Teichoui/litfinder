@@ -1,5 +1,3 @@
-import pytest
-
 from shelfmark.core.text_match import (
     DEFAULT_TITLE_MATCH_THRESHOLD,
     author_surname,
@@ -72,11 +70,11 @@ class TestTitleTokensMatch:
         assert title_tokens_match("Frankenstein", haystack) is False
 
     def test_partial_match_above_threshold(self):
-        haystack = set(["lord", "rings", "fellowship"])
+        haystack = {"lord", "rings", "fellowship"}
         assert title_tokens_match("Lord of the Rings", haystack, threshold=0.5) is True
 
     def test_partial_match_below_threshold(self):
-        haystack = set(["lord"])
+        haystack = {"lord"}
         assert title_tokens_match("Lord of the Rings", haystack, threshold=0.85) is False
 
     def test_empty_title_returns_false(self):

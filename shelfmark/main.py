@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import sqlite3
+import tempfile
 import time
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
@@ -96,6 +97,8 @@ from shelfmark.release_sources import (
     SourceUnavailableError,
     get_source_display_name,
 )
+from shelfmark.watchlist.db import WatchlistDB
+from shelfmark.watchlist.routes import init_watchlist_routes, watchlist_bp
 
 if TYPE_CHECKING:
     from shelfmark.metadata_providers import BookMetadata, MetadataProvider
@@ -182,6 +185,13 @@ _user_db_path = str(Path(os.environ.get("CONFIG_DIR", "/config")) / "users.db")
 user_db: UserDB | None = None
 download_history_service: DownloadHistoryService | None = None
 activity_view_state_service: ActivityViewStateService | None = None
+
+
+def _resolve_auth_mode_for_routes() -> str:
+    """Resolve auth mode lazily so tests and runtime patches still take effect."""
+    return get_auth_mode()
+
+
 try:
     user_db = UserDB(_user_db_path)
     user_db.initialize()
@@ -189,6 +199,8 @@ try:
     activity_view_state_service = ActivityViewStateService(_user_db_path)
     init_inventory_service(_user_db_path)
     init_abs_inventory_service(_user_db_path)
+    watchlist_db = WatchlistDB(_user_db_path)
+    watchlist_db.initialize()
     import_module("shelfmark.config.users_settings")
     from shelfmark.core.admin_routes import register_admin_routes
     from shelfmark.core.oidc_routes import register_oidc_routes
@@ -197,6 +209,12 @@ try:
     register_oidc_routes(app, user_db)
     register_admin_routes(app, user_db)
     register_self_user_routes(app, user_db)
+    init_watchlist_routes(
+        watchlist_db,
+        user_db=user_db,
+        resolve_auth_mode=_resolve_auth_mode_for_routes,
+    )
+    app.register_blueprint(watchlist_bp)
 except (sqlite3.OperationalError, OSError) as e:
     logger.warning(
         "User database initialization failed: %s. Multi-user authentication features will be disabled. Ensure CONFIG_DIR (%s) exists and is writable.",
@@ -390,7 +408,7 @@ def _resolve_release_content_type(data: dict[str, Any], source: Any) -> tuple[st
         for raw_category in categories:
             try:
                 category_id = int(raw_category)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
             if min_cat <= category_id <= max_cat:
                 return "audiobook", True
@@ -434,7 +452,7 @@ def _resolve_policy_mode_for_current_user(*, source: Any, content_type: Any) -> 
     if db_user_id is not None:
         try:
             user_settings = user_db.get_user_settings(int(db_user_id))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             user_settings = None
 
     effective = merge_request_policy_settings(global_settings, user_settings)
@@ -506,7 +524,7 @@ def _resolve_download_user_context(
 
     try:
         target_user_id = int(on_behalf_of_user_id)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return db_user_id, username, (jsonify({"error": "Invalid on_behalf_of_user_id"}), 400)
 
     if target_user_id <= 0:
@@ -522,11 +540,6 @@ def _resolve_download_user_context(
 def _emit_request_updates(rows: list[dict[str, Any]]) -> None:
     """Defer request update emission until the runtime hook is available."""
     _emit_request_update_events(rows)
-
-
-def _resolve_auth_mode_for_routes() -> str:
-    """Resolve auth mode lazily so tests and runtime patches still take effect."""
-    return get_auth_mode()
 
 
 def _queue_release_for_routes(*args: Any, **kwargs: Any) -> Any:
@@ -781,7 +794,7 @@ def proxy_auth_middleware() -> Response | tuple[Response, int] | None:
             if raw_db_user_id is not None:
                 try:
                     session_db_user = user_db.get_user(user_id=int(raw_db_user_id))
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     session_db_user = None
 
             session_db_username = (
@@ -857,7 +870,7 @@ def login_required(
                 ):
                     return jsonify({"error": "Admin access required"}), 403
 
-            except (RuntimeError, TypeError, ValueError):
+            except RuntimeError, TypeError, ValueError:
                 logger.exception("Admin access check error")
                 return jsonify({"error": "Internal Server Error"}), 500
 
@@ -962,7 +975,8 @@ if _is_debug_enabled():
             # Require the output path to be within /tmp to prevent the script's
             # stdout from being used to serve arbitrary filesystem paths.
             debug_resolved = Path(debug_file_path).resolve()
-            if not str(debug_resolved).startswith("/tmp/"):
+            tmp_dir = Path(tempfile.gettempdir()).resolve()
+            if not debug_resolved.is_relative_to(tmp_dir):
                 logger.error("Debug script returned unexpected file path: %s", debug_file_path)
                 return jsonify({"error": "Failed to generate debug information"}), 500
             if not debug_resolved.exists():
@@ -1297,7 +1311,7 @@ def _notify_admin_for_terminal_download_status(
     raw_owner_user_id = getattr(task, "user_id", None)
     try:
         owner_user_id = int(raw_owner_user_id) if raw_owner_user_id is not None else None
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         owner_user_id = None
 
     content_type = normalize_optional_text(getattr(task, "content_type", None))
@@ -1506,7 +1520,7 @@ def _task_owned_by_actor(
     raw_task_user_id = getattr(task, "user_id", None)
     try:
         task_user_id = int(raw_task_user_id) if raw_task_user_id is not None else None
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         task_user_id = None
 
     if actor_user_id is not None and task_user_id is not None:
@@ -1603,9 +1617,7 @@ def _emit_request_update_events(updated_requests: list[dict[str, Any]]) -> None:
         )
 
 
-def _enrich_queue_status_with_display_names(
-    status: dict[str, dict[str, Any]], db: Any
-) -> None:
+def _enrich_queue_status_with_display_names(status: dict[str, dict[str, Any]], db: Any) -> None:
     """Add display_name to each book dict in the queue status using a per-user cache."""
     cache: dict[int, str | None] = {}
     for bucket in status.values():
@@ -1617,7 +1629,7 @@ def _enrich_queue_status_with_display_names(
                 try:
                     row = db.get_user(user_id=uid_raw)
                     cache[uid_raw] = row.get("display_name") if row else None
-                except Exception:
+                except _OPERATIONAL_ERRORS:
                     cache[uid_raw] = None
             book["display_name"] = cache[uid_raw]
 
@@ -1683,16 +1695,31 @@ def api_local_download() -> Response | tuple[Response, int]:
                                 history_row.get("download_path")
                             )
                             if download_path:
-                                _safe_exts = frozenset({
-                                    # Default supported ebook formats
-                                    ".epub", ".pdf", ".mobi", ".azw3", ".azw", ".fb2", ".djvu",
-                                    ".cbr", ".cbz",
-                                    # Audiobook / media formats
-                                    ".mp3", ".m4b", ".m4a", ".ogg", ".flac", ".aac",
-                                    ".wav", ".opus",
-                                    # Archive (books are sometimes delivered zipped)
-                                    ".zip",
-                                })
+                                _safe_exts = frozenset(
+                                    {
+                                        # Default supported ebook formats
+                                        ".epub",
+                                        ".pdf",
+                                        ".mobi",
+                                        ".azw3",
+                                        ".azw",
+                                        ".fb2",
+                                        ".djvu",
+                                        ".cbr",
+                                        ".cbz",
+                                        # Audiobook / media formats
+                                        ".mp3",
+                                        ".m4b",
+                                        ".m4a",
+                                        ".ogg",
+                                        ".flac",
+                                        ".aac",
+                                        ".wav",
+                                        ".opus",
+                                        # Archive (books are sometimes delivered zipped)
+                                        ".zip",
+                                    }
+                                )
                                 resolved_dl = Path(download_path).resolve()
                                 if resolved_dl.suffix.lower() not in _safe_exts:
                                     logger.warning(
@@ -2357,6 +2384,8 @@ def api_login() -> Response | tuple[Response, int]:
                 sync_role=False,
                 context="kavita_login",
             )
+            if db_user is None:
+                return jsonify({"error": "Failed to create Kavita user"}), 500
             session["user_id"] = db_user["username"]
             session["db_user_id"] = db_user["id"]
             session["is_admin"] = db_user["role"] == "admin"
@@ -3017,6 +3046,9 @@ def api_metadata_book_targets_update(
     provider: str, book_id: str
 ) -> Response | tuple[Response, int]:
     """Set whether a book belongs to a provider-managed list or shelf."""
+    if get_auth_mode() != "none" and not session.get("is_admin", False):
+        return jsonify({"error": "Admin required"}), 403
+
     prov = _resolve_metadata_provider(provider)
 
     payload = request.get_json(silent=True) or {}

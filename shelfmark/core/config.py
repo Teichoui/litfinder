@@ -107,6 +107,7 @@ class Config:
             import_module("shelfmark.config.security")
             import_module("shelfmark.config.settings")
             import_module("shelfmark.config.users_settings")
+            import_module("shelfmark.config.library_settings")
             # Kavita/Audiobookshelf keys (e.g. KAVITA_URL) must be in the cache for
             # auth-mode resolution at login time, not just after a settings-page load.
             import_module("shelfmark.config.kavita_settings")
@@ -171,7 +172,7 @@ class Config:
             db_path = str(Path(os.environ.get("CONFIG_DIR", "/config")) / "users.db")
             user_db = user_db_cls(db_path)
             user_db.initialize()
-        except (ImportError, OSError, sqlite3.Error):
+        except ImportError, OSError, sqlite3.Error:
             # Multi-user support is optional; fall back to global config when unavailable.
             return None
         else:
@@ -190,7 +191,7 @@ class Config:
 
         try:
             settings = user_db.get_user_settings(user_id)
-        except (sqlite3.OperationalError, OSError, ValueError, TypeError):
+        except sqlite3.OperationalError, OSError, ValueError, TypeError:
             return {}
 
         if not isinstance(settings, dict):
