@@ -434,6 +434,18 @@ class WatchlistDB:
         finally:
             conn.close()
 
+    def get_release(self, release_id: int) -> dict[str, Any] | None:
+        """Return a single detected release by ID, or None if not found."""
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT * FROM watchlist_releases WHERE id = ?",
+                (release_id,),
+            ).fetchone()
+            return _parse_release_row(row)
+        finally:
+            conn.close()
+
     def update_release_action(
         self,
         release_id: int,
